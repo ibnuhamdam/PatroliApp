@@ -4,9 +4,14 @@ const XLSX = require('xlsx');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
+
+// Initialize Gemini AI
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'AIzaSyAY74qf37C81flxSNnEeIQs2CKIK2gUjWo');
+const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
 // Middleware
 app.use(cors());
@@ -252,6 +257,36 @@ app.post('/api/reset', (req, res) => {
   productsData = [];
   currentFileName = '';
   res.json({ success: true, message: 'Data berhasil direset' });
+});
+
+// Endpoint: AI Product Explanation
+app.post('/api/ai/explain-product', async (req, res) => {
+  try {
+    const { productName } = req.body;
+    
+    if (!productName) {
+      return res.status(400).json({ error: 'Nama produk diperlukan' });
+    }
+
+    const prompt = `Jelaskan secara singkat apa itu produk "${productName}" dalam 2-3 kalimat. Fokus pada fungsi dan kegunaan produk tersebut dalam konteks perkantoran atau bisnis. Gunakan Bahasa Indonesia yang mudah dipahami.`;
+    
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const explanation = response.text();
+    
+    res.json({ 
+      success: true,
+      productName: productName,
+      explanation: explanation
+    });
+
+  } catch (error) {
+    console.error('Error calling Gemini API:', error);
+    res.status(500).json({ 
+      error: 'Gagal mendapatkan penjelasan dari AI',
+      message: error.message 
+    });
+  }
 });
 
 app.listen(PORT, () => {

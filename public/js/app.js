@@ -168,6 +168,10 @@ function renderProducts(products) {
       <div class="product-image">
         <img src="${escapeHtml(product.urlImage.trim())}" alt="${escapeHtml(product.namaProduk)}" referrerpolicy="no-referrer" loading="lazy" onerror="this.onerror=null; this.src='https://via.placeholder.com/150?text=No+Image'">
       </div>
+
+      <button class="btn-ai" onclick="explainProduct('${escapeHtml(product.namaProduk)}', ${product.id})">
+        🤖 Tanya AI tentang produk ini
+      </button>
       
       <div class="product-info">
         <div class="info-row">
@@ -387,4 +391,114 @@ function showNotification(message, type = 'success') {
     notification.style.animation = 'slideInRight 0.3s ease reverse';
     setTimeout(() => notification.remove(), 300);
   }, 4000);
+}
+
+// AI Product Explanation
+async function explainProduct(productName, productId) {
+  try {
+    // Show loading modal
+    showAIModal(productName, 'loading');
+    
+    const response = await fetch(`${API_URL}/ai/explain-product`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ productName })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Gagal mendapatkan penjelasan');
+    }
+
+    // Show result
+    showAIModal(productName, 'success', data.explanation);
+
+  } catch (error) {
+    showAIModal(productName, 'error', error.message);
+  }
+}
+
+function showAIModal(productName, status, content = '') {
+  // Remove existing modal
+  const existingModal = document.getElementById('aiModal');
+  if (existingModal) {
+    existingModal.remove();
+  }
+
+  // Create modal
+  const modal = document.createElement('div');
+  modal.id = 'aiModal';
+  modal.className = 'ai-modal';
+  
+  let modalContent = '';
+  
+  if (status === 'loading') {
+    modalContent = `
+      <div class="ai-modal-content">
+        <div class="ai-modal-header">
+          <h3>🤖 AI sedang berpikir...</h3>
+          <button class="ai-modal-close" onclick="closeAIModal()">✕</button>
+        </div>
+        <div class="ai-modal-body">
+          <div class="ai-loading">
+            <div class="loading"></div>
+            <p>Menganalisis produk "${escapeHtml(productName)}"...</p>
+          </div>
+        </div>
+      </div>
+    `;
+  } else if (status === 'success') {
+    modalContent = `
+      <div class="ai-modal-content">
+        <div class="ai-modal-header">
+          <h3>🤖 Penjelasan AI: ${escapeHtml(productName)}</h3>
+          <button class="ai-modal-close" onclick="closeAIModal()">✕</button>
+        </div>
+        <div class="ai-modal-body">
+          <div class="ai-explanation">
+            ${escapeHtml(content)}
+          </div>
+        </div>
+        <div class="ai-modal-footer">
+          <button class="btn btn-primary" onclick="closeAIModal()">Tutup</button>
+        </div>
+      </div>
+    `;
+  } else {
+    modalContent = `
+      <div class="ai-modal-content">
+        <div class="ai-modal-header">
+          <h3>❌ Error</h3>
+          <button class="ai-modal-close" onclick="closeAIModal()">✕</button>
+        </div>
+        <div class="ai-modal-body">
+          <p style="color: var(--text-secondary);">${escapeHtml(content)}</p>
+        </div>
+        <div class="ai-modal-footer">
+          <button class="btn btn-danger" onclick="closeAIModal()">Tutup</button>
+        </div>
+      </div>
+    `;
+  }
+  
+  modal.innerHTML = modalContent;
+  document.body.appendChild(modal);
+  
+  // Close on background click
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      closeAIModal();
+    }
+  });
+}
+
+function closeAIModal() {
+  const modal = document.getElementById('aiModal');
+  if (modal) {
+    modal.style.animation = 'fadeOut 0.3s ease';
+    setTimeout(() => modal.remove(), 300);
+  }
 }
