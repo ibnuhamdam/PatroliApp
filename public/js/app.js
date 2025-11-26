@@ -3,8 +3,8 @@ let currentPage = 1;
 const itemsPerPage = 10;
 let totalPages = 1;
 
-// API Base URL
-const API_URL = 'http://localhost:3000/api';
+// API Base URL - works on both localhost and production
+const API_URL = `${window.location.origin}/api`;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
