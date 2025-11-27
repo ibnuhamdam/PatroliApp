@@ -511,7 +511,7 @@ app.post('/api/scrape-image', async (req, res) => {
         '--disable-gpu',
         '--no-first-run',
         '--no-zygote',
-        // '--single-process', // Optional: use if memory is extremely tight
+        '--single-process', // Optional: use if memory is extremely tight
       ],
       timeout: 60000 // Increase timeout to 60s
     });
@@ -522,7 +522,17 @@ app.post('/api/scrape-image', async (req, res) => {
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
     
     // Navigate to URL
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    // Optimize: Block images, fonts, and stylesheets to save resources
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      if (['image', 'stylesheet', 'font', 'media'].includes(req.resourceType())) {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
+
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
     // Extract image URL
     const imageUrl = await page.evaluate(() => {
