@@ -777,7 +777,7 @@ async function autoFetchImage(productId, url) {
         container.innerHTML = `<img src="${data.urlImage}" alt="Product Image" referrerpolicy="no-referrer" loading="lazy" onerror="this.onerror=null; this.src='https://via.placeholder.com/150?text=No+Image'">`;
       }
     } else {
-      throw new Error('Gambar tidak ditemukan');
+      throw new Error(data.error || 'Gambar tidak ditemukan');
     }
 
   } catch (error) {
