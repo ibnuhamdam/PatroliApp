@@ -181,7 +181,7 @@ function renderProducts(products) {
       
       ${!product.urlImage ? `<script>autoFetchImage(${product.id}, '${escapeHtml(product.urlProduk)}')</script>` : ''}
 
-      <button class="btn-ai" onclick="explainProduct('${escapeHtml(product.namaProduk)}', ${product.id})">
+      <button class="btn-ai" onclick="explainProduct('${escapeHtml(product.namaProduk)}', '${escapeHtml(product.kategoriLv3)}', ${product.id})">
         🤖 Tanya AI tentang produk ini
       </button>
       
@@ -579,7 +579,7 @@ function showNotification(message, type = 'success') {
 }
 
 // AI Product Explanation
-async function explainProduct(productName, productId) {
+async function explainProduct(productName, categoryName, productId) {
   try {
     // Show loading modal
     showAIModal(productName, 'loading');
@@ -589,7 +589,7 @@ async function explainProduct(productName, productId) {
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ productName })
+      body: JSON.stringify({ productName, categoryName })
     });
 
     const data = await response.json();

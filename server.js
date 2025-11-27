@@ -276,12 +276,13 @@ app.post('/api/reset', (req, res) => {
 app.post('/api/ai/explain-product', async (req, res) => {
   try {
     const { productName } = req.body;
+    const { categoryName } = req.body;
     
     if (!productName) {
       return res.status(400).json({ error: 'Nama produk diperlukan' });
     }
 
-    const prompt = `Jelaskan secara singkat apa itu produk "${productName}" dalam 2-3 kalimat. Fokus pada fungsi dan kegunaan produk tersebut dalam konteks perkantoran atau bisnis. Gunakan Bahasa Indonesia yang mudah dipahami.`;
+    const prompt = `Jelaskan secara singkat apa itu produk "${productName}" dalam 2-3 kalimat. Fokus pada fungsi dan kegunaan produk tersebut dalam konteks perkantoran atau bisnis. dan apakah produk "${productName}" dapat dikategorikan dalam kategori "${categoryName}"? Gunakan Bahasa Indonesia yang mudah dipahami.`;
     
     const result = await model.generateContent(prompt);
     const response = await result.response;
@@ -438,10 +439,21 @@ app.post('/api/scrape-image', async (req, res) => {
 
     // Fetch HTML with timeout
     // Use a bot user agent to ensure we get the pre-rendered meta tags (SSR)
+    // Use a standard browser User-Agent and headers to avoid 403 Forbidden
     const response = await axios.get(url, {
-      timeout: 10000, 
+      timeout: 15000, 
       headers: {
-        'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Cache-Control': 'max-age=0'
       }
     });
     
