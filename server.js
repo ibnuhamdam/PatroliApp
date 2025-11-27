@@ -536,21 +536,62 @@ app.post('/api/scrape-image', async (req, res) => {
 
     // Extract image URL
     const imageUrl = await page.evaluate(() => {
-      // Priority 1: OG Image
+      // Helper to check if image is likely a logo or icon
+      const isLikelyUseless = (img) => {
+        const src = img.src.toLowerCase();
+        const alt = (img.alt || '').toLowerCase();
+        const className = (img.className || '').toLowerCase();
+        
+        return src.includes('logo') || 
+               src.includes('icon') || 
+               alt.includes('logo') || 
+               className.includes('logo') ||
+               className.includes('icon') ||
+               img.width < 100 || // Skip very small images
+               img.height < 100;
+      };
+
+      // Priority 1: OG Image (Meta Tag)
       const ogImage = document.querySelector('meta[property="og:image"]');
       if (ogImage && ogImage.content) return ogImage.content;
       
-      // Priority 2: Twitter Image
+      // Priority 2: Twitter Image (Meta Tag)
       const twitterImage = document.querySelector('meta[name="twitter:image"]');
       if (twitterImage && twitterImage.content) return twitterImage.content;
       
-      // Priority 3: Specific class
-      const stickyImg = document.querySelector('.sticky-section-image img');
-      if (stickyImg && stickyImg.src) return stickyImg.src;
+      // Priority 3: Common Product Image Selectors
+      const selectors = [
+        '.product-image img',
+        '.product-detail img',
+        '.gallery-image img',
+        '.main-image img',
+        'img[itemprop="image"]',
+        '.sticky-section-image img'
+      ];
+
+      for (const selector of selectors) {
+        const img = document.querySelector(selector);
+        if (img && img.src && !isLikelyUseless(img)) {
+          return img.src;
+        }
+      }
       
-      // Priority 4: First Image
-      const firstImg = document.querySelector('img');
-      if (firstImg && firstImg.src) return firstImg.src;
+      // Priority 4: Heuristic - Find the largest image on the page
+      const allImages = Array.from(document.querySelectorAll('img'));
+      let largestImg = null;
+      let maxArea = 0;
+
+      for (const img of allImages) {
+        if (isLikelyUseless(img)) continue;
+
+        const area = img.width * img.height;
+        if (area > maxArea) {
+          maxArea = area;
+          largestImg = img;
+        }
+      }
+
+      if (largestImg) return largestImg.src;
       
       return null;
     });
