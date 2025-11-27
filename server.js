@@ -8,6 +8,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const sheetsService = require('./services/sheetsService');
 const axios = require('axios');
 const cheerio = require('cheerio');
+const puppeteer = require('puppeteer');
 const env = require('dotenv').config();
 
 const app = express();
@@ -489,7 +490,7 @@ app.post('/api/sheets/update', async (req, res) => {
   }
 });
 
-// Endpoint: Scrape Image
+// Endpoint: Scrape Image (Puppeteer)
 app.post('/api/scrape-image', async (req, res) => {
   try {
     const { productId, url } = req.body;
@@ -498,83 +499,44 @@ app.post('/api/scrape-image', async (req, res) => {
       return res.status(400).json({ error: 'URL produk diperlukan' });
     }
 
-    // console.log(`[Scraper] Fetching URL: ${url}`);
-
-    // Fetch HTML with timeout
-    // Use a bot user agent to ensure we get the pre-rendered meta tags (SSR)
-    // Use a standard browser User-Agent and headers to avoid 403 Forbidden
-    const response = await axios.get(url, {
-      timeout: 15000, 
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-User': '?1',
-        'Cache-Control': 'max-age=0'
-      }
+    // Launch Puppeteer
+    const browser = await puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox'] // Required for Railway
     });
     
-    // console.log(`[Scraper] Response received. Status: ${response.status}`);
+    const page = await browser.newPage();
     
-    const html = response.data;
-    const $ = cheerio.load(html);
+    // Set User-Agent to mimic a real browser
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
     
-    // Select image
-    // Priority 1: Open Graph Image (Best for dynamic sites like Next.js/React)
-    let imageUrl = $('meta[property="og:image"]').attr('content');
-    // if (imageUrl) console.log('[Scraper] Found via og:image');
+    // Navigate to URL
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-    // Priority 2: Twitter Image
-    if (!imageUrl) {
-      imageUrl = $('meta[name="twitter:image"]').attr('content');
-      // if (imageUrl) console.log('[Scraper] Found via twitter:image');
-    }
+    // Extract image URL
+    const imageUrl = await page.evaluate(() => {
+      // Priority 1: OG Image
+      const ogImage = document.querySelector('meta[property="og:image"]');
+      if (ogImage && ogImage.content) return ogImage.content;
+      
+      // Priority 2: Twitter Image
+      const twitterImage = document.querySelector('meta[name="twitter:image"]');
+      if (twitterImage && twitterImage.content) return twitterImage.content;
+      
+      // Priority 3: Specific class
+      const stickyImg = document.querySelector('.sticky-section-image img');
+      if (stickyImg && stickyImg.src) return stickyImg.src;
+      
+      // Priority 4: First Image
+      const firstImg = document.querySelector('img');
+      if (firstImg && firstImg.src) return firstImg.src;
+      
+      return null;
+    });
 
-    // Priority 3: Specific class requested by user (img tag)
-    if (!imageUrl) {
-      const stickyImg = $('.sticky-section-image img').attr('src');
-      if (stickyImg) {
-        imageUrl = stickyImg;
-        // console.log('[Scraper] Found via .sticky-section-image img');
-      }
-    }
-    
-    // Selector 3: Fallback to first image in main container (generic)
-    if (!imageUrl) {
-      imageUrl = $('img').first().attr('src');
-      if (imageUrl) console.log('[Scraper] Found via first img');
-    }
-
-    // Fallback: Regex for Next.js hydration data (if meta tags are missing from DOM)
-    if (!imageUrl) {
-      // Pattern: property":"og:image","content":"URL"
-      const regex = /property\\?":\\?"og:image\\?",\\?"content\\?":\\?"([^\\"]+)\\"/;
-      const match = html.match(regex);
-      if (match && match[1]) {
-        imageUrl = match[1];
-        console.log('[Scraper] Found via Regex (Next.js hydration)');
-      }
-    }
+    await browser.close();
 
     if (imageUrl) {
-      // Handle relative URLs
-      if (imageUrl.startsWith('/')) {
-        const urlObj = new URL(url);
-        imageUrl = `${urlObj.origin}${imageUrl}`;
-      } else if (!imageUrl.startsWith('http')) {
-        // Handle relative URLs without leading slash (rare but possible)
-        const urlObj = new URL(url);
-        imageUrl = `${urlObj.origin}/${imageUrl}`;
-      }
-
-      // console.log(`[Scraper] ✅ FINAL IMAGE URL for ${url}: ${imageUrl}`);
-
       // Update in-memory data
       const product = productsData.find(p => p.id === parseInt(productId));
       if (product) {
@@ -583,17 +545,11 @@ app.post('/api/scrape-image', async (req, res) => {
       
       res.json({ success: true, urlImage: imageUrl });
     } else {
-      // console.log(`[Scraper] ❌ No image found for ${url}`);
-      // console.log('[Scraper] HTML Preview (first 500 chars):');
-      // console.log(html.substring(0, 500)); 
       res.status(404).json({ error: 'Gambar tidak ditemukan' });
     }
 
   } catch (error) {
     console.error(`[Scraper] 💥 Error scraping image: ${error.message}`);
-    if (error.response) {
-       console.error(`[Scraper] Response Status: ${error.response.status}`);
-    }
     res.status(500).json({ error: 'Gagal mengambil gambar: ' + error.message });
   }
 });
