@@ -502,7 +502,16 @@ app.post('/api/scrape-image', async (req, res) => {
     // Launch Puppeteer
     const browser = await puppeteer.launch({
       headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox'] // Required for Railway
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage', // Critical for Docker/Railway (prevents shared memory crashes)
+        '--disable-gpu',
+        '--no-first-run',
+        '--no-zygote',
+        // '--single-process', // Optional: use if memory is extremely tight
+      ],
+      timeout: 60000 // Increase timeout to 60s
     });
     
     const page = await browser.newPage();
