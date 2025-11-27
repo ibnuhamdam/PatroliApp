@@ -2,6 +2,7 @@
 let currentPage = 1;
 const itemsPerPage = 10;
 let totalPages = 1;
+let currentMode = 'excel'; // 'excel' or 'sheets'
 
 // API Base URL - works on both localhost and production
 const API_URL = `${window.location.origin}/api`;
@@ -100,8 +101,11 @@ async function handleFileSelect(event) {
 
 // Load Products
 async function loadProducts() {
+  const reviewerSelect = document.getElementById('reviewerSelect');
+  const reviewerName = reviewerSelect.value.trim();
+
   try {
-    const response = await fetch(`${API_URL}/products?page=${currentPage}&limit=${itemsPerPage}`);
+    const response = await fetch(`${API_URL}/products?page=${currentPage}&limit=${itemsPerPage}&reviewer=${reviewerName}`);
     const data = await response.json();
 
     // console.log(data)
@@ -165,9 +169,17 @@ function renderProducts(products) {
         <h3 class="product-name">${escapeHtml(product.namaProduk)}</h3>
       </a>
       
-      <div class="product-image">
-        <img src="${escapeHtml(product.urlImage.trim())}" alt="${escapeHtml(product.namaProduk)}" referrerpolicy="no-referrer" loading="lazy" onerror="this.onerror=null; this.src='https://via.placeholder.com/150?text=No+Image'">
+      <div class="product-image" id="img-container-${product.id}">
+        ${product.urlImage ? 
+          `<img src="${escapeHtml(product.urlImage.trim())}" alt="${escapeHtml(product.namaProduk)}" referrerpolicy="no-referrer" loading="lazy" onerror="this.onerror=null; this.src='https://via.placeholder.com/150?text=No+Image'">` :
+          `<div class="loading-image">
+             <div class="loading"></div>
+             <p>Mengambil gambar...</p>
+           </div>`
+        }
       </div>
+      
+      ${!product.urlImage ? `<script>autoFetchImage(${product.id}, '${escapeHtml(product.urlProduk)}')</script>` : ''}
 
       <button class="btn-ai" onclick="explainProduct('${escapeHtml(product.namaProduk)}', ${product.id})">
         🤖 Tanya AI tentang produk ini
@@ -183,6 +195,10 @@ function renderProducts(products) {
         <div class="info-row">
           <span class="info-label">👤 Pemeriksa:</span>
           <span class="info-value">${escapeHtml(product.pemeriksa)}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">👤 Reviewer:</span>
+          <span class="info-value">${escapeHtml(product.reviewer)}</span>
         </div>
         ${product.hasilReview ? `
         <div class="info-row">
@@ -203,7 +219,15 @@ function renderProducts(products) {
         </button>
       </div>
     </div>
+    </div>
   `).join('');
+
+  // Trigger auto fetch for products without images
+  products.forEach(product => {
+    if (!product.urlImage && product.urlProduk) {
+      autoFetchImage(product.id, product.urlProduk);
+    }
+  });
 }
 
 // Review Product
@@ -237,8 +261,11 @@ async function reviewProduct(productId, hasil_review) {
 
 // Load Statistics
 async function loadStats() {
+  const reviewerSelect = document.getElementById('reviewerSelect');
+  const reviewerName = reviewerSelect.value.trim();
+
   try {
-    const response = await fetch(`${API_URL}/stats`);
+    const response = await fetch(`${API_URL}/stats?reviewer=${reviewerName}`);
     const stats = await response.json();
 
     if (!response.ok) {
@@ -307,19 +334,177 @@ async function resetData() {
       throw new Error(data.error || 'Gagal mereset data');
     }
 
+    // Reset file input
+    document.getElementById('fileInput').value = '';
+    document.getElementById('sheetIdInput').value = '';
+    
     // Reset UI
+    document.getElementById('uploadArea').classList.remove('hidden');
+    if (currentMode === 'sheets') {
+      document.getElementById('sheetsSection').classList.remove('hidden');
+      document.getElementById('excelSection').classList.add('hidden');
+    } else {
+      document.getElementById('excelSection').classList.remove('hidden');
+      document.getElementById('sheetsSection').classList.add('hidden');
+    }
+    
     document.getElementById('statsSection').classList.add('hidden');
     document.getElementById('productsSection').classList.add('hidden');
-    document.getElementById('emptyState').classList.remove('hidden');
-    document.getElementById('uploadStatus').innerHTML = '';
-    document.getElementById('fileInput').value = '';
-
-    currentPage = 1;
+    document.getElementById('uploadStatus').classList.add('hidden');
+    document.getElementById('uploadStatus').textContent = '';
     
-    showNotification('Data berhasil direset!', 'success');
+    // Reset buttons
+    document.getElementById('btnUpdateSheets').classList.add('hidden');
+    document.getElementById('btnDownload').classList.remove('hidden');
 
+    showNotification('Data berhasil direset', 'success');
   } catch (error) {
     showNotification(error.message, 'error');
+  }
+}
+
+// Mode Switching
+function switchMode(mode) {
+  currentMode = mode;
+  
+  // Update buttons
+  document.getElementById('btnModeExcel').classList.toggle('active', mode === 'excel');
+  document.getElementById('btnModeSheets').classList.toggle('active', mode === 'sheets');
+  
+  // Update sections
+  if (mode === 'excel') {
+    document.getElementById('excelSection').classList.remove('hidden');
+    document.getElementById('sheetsSection').classList.add('hidden');
+    document.getElementById('btnUpdateSheets').classList.add('hidden');
+    document.getElementById('btnDownload').classList.remove('hidden');
+  } else {
+    document.getElementById('excelSection').classList.add('hidden');
+    document.getElementById('sheetsSection').classList.remove('hidden');
+    // Only show update button if data is loaded
+    if (document.getElementById('productsSection').classList.contains('hidden')) {
+      document.getElementById('btnUpdateSheets').classList.add('hidden');
+    } else {
+      document.getElementById('btnUpdateSheets').classList.remove('hidden');
+      document.getElementById('btnDownload').classList.add('hidden');
+    }
+  }
+}
+
+// Load from Google Sheets
+async function loadFromSheets() {
+  const sheetIdInput = document.getElementById('sheetIdInput');
+  const reviewerSelect = document.getElementById('reviewerSelect');
+  const spreadsheetIdOrUrl = sheetIdInput.value.trim();
+  const reviewerName = reviewerSelect.value.trim();
+  
+  // Validate reviewer selection
+  if (!reviewerName) {
+    showNotification('Silakan pilih nama reviewer terlebih dahulu', 'error');
+    return;
+  }
+
+  if (!spreadsheetIdOrUrl) {
+    showNotification('Silakan masukkan ID atau URL Spreadsheet', 'error');
+    return;
+  }
+
+  // Extract ID if URL is provided
+  let spreadsheetId = spreadsheetIdOrUrl;
+  const match = spreadsheetIdOrUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  if (match) {
+    spreadsheetId = match[1];
+  }
+
+  const statusDiv = document.getElementById('uploadStatus');
+  statusDiv.textContent = `Memuat data untuk reviewer: ${reviewerName}...`;
+  statusDiv.className = 'mt-2 text-center text-info';
+  statusDiv.classList.remove('hidden');
+
+  try {
+    const response = await fetch(`${API_URL}/sheets/read`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ spreadsheetId, reviewerName })
+    });
+
+    const data = await response.json();
+
+    // console.log(data);
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Gagal memuat data');
+    }
+
+    // Update UI
+    document.getElementById('uploadArea').classList.add('hidden'); // Hide upload area
+    document.getElementById('sheetsSection').classList.add('hidden'); // Hide sheets input
+    document.getElementById('statsSection').classList.remove('hidden');
+    document.getElementById('productsSection').classList.remove('hidden');
+    
+    // Show Update Button, Hide Download
+    document.getElementById('btnUpdateSheets').classList.remove('hidden');
+    document.getElementById('btnDownload').classList.add('hidden');
+
+    statusDiv.textContent = data.message;
+    statusDiv.className = 'mt-2 text-center text-success';
+
+    // Load products and stats
+    await loadProducts();
+    await loadStats();
+
+  } catch (error) {
+    console.error('Error:', error);
+    statusDiv.textContent = error.message;
+    statusDiv.className = 'mt-2 text-center text-danger';
+  }
+}
+
+// Update Google Sheets
+async function updateSheets() {
+  const sheetIdInput = document.getElementById('sheetIdInput');
+  let spreadsheetId = sheetIdInput.value.trim();
+  
+  // Extract ID if URL is provided
+  const match = spreadsheetId.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  if (match) {
+    spreadsheetId = match[1];
+  }
+
+  if (!spreadsheetId) {
+    showNotification('ID Spreadsheet hilang, silakan muat ulang', 'error');
+    return;
+  }
+
+  const btnUpdate = document.getElementById('btnUpdateSheets');
+  const originalText = btnUpdate.innerHTML;
+  btnUpdate.disabled = true;
+  btnUpdate.innerHTML = '⏳ Mengupdate...';
+
+  try {
+    const response = await fetch(`${API_URL}/sheets/update`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ spreadsheetId })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Gagal mengupdate sheet');
+    }
+
+    showNotification(data.message, 'success');
+
+  } catch (error) {
+    console.error('Error:', error);
+    showNotification(error.message, 'error');
+  } finally {
+    btnUpdate.disabled = false;
+    btnUpdate.innerHTML = originalText;
   }
 }
 
@@ -500,5 +685,38 @@ function closeAIModal() {
   if (modal) {
     modal.style.animation = 'fadeOut 0.3s ease';
     setTimeout(() => modal.remove(), 300);
+  }
+}
+
+// Auto Fetch Image
+async function autoFetchImage(productId, url) {
+  try {
+    const response = await fetch(`${API_URL}/scrape-image`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ productId, url })
+    });
+
+    const data = await response.json();
+
+    // console.log(data);
+
+    if (data.success && data.urlImage) {
+      const container = document.getElementById(`img-container-${productId}`);
+      if (container) {
+        container.innerHTML = `<img src="${data.urlImage}" alt="Product Image" referrerpolicy="no-referrer" loading="lazy" onerror="this.onerror=null; this.src='https://via.placeholder.com/150?text=No+Image'">`;
+      }
+    } else {
+      throw new Error('Gambar tidak ditemukan');
+    }
+
+  } catch (error) {
+    console.error(`Failed to fetch image for product ${productId}:`, error);
+    const container = document.getElementById(`img-container-${productId}`);
+    if (container) {
+      container.innerHTML = `<div class="no-image">Gambar tidak tersedia</div>`;
+    }
   }
 }

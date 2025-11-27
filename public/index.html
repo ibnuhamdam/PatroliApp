@@ -17,15 +17,57 @@
 
     <!-- Upload Section -->
     <section class="upload-section">
-      <div class="upload-area" id="uploadArea">
-        <div class="upload-icon">📁</div>
-        <h3>Upload File Excel</h3>
-        <p>Drag & drop file Excel atau klik untuk memilih file</p>
-        <input type="file" id="fileInput" accept=".xlsx,.xls">
-        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
-          Pilih File Excel
-        </button>
+      <div class="mode-switch">
+        <button class="btn-mode active" id="btnModeExcel" onclick="switchMode('excel')">Upload Excel</button>
+        <button class="btn-mode" id="btnModeSheets" onclick="switchMode('sheets')">Google Sheets</button>
       </div>
+
+      <!-- Excel Mode -->
+      <div id="excelSection">
+        <div class="upload-area" id="uploadArea">
+          <div class="upload-icon">📁</div>
+          <h3>Upload File Excel</h3>
+          <p>Drag & drop file Excel atau klik untuk memilih file</p>
+          <input type="file" id="fileInput" accept=".xlsx,.xls">
+          <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+            Pilih File Excel
+          </button>
+        </div>
+      </div>
+
+      <div id="sheetsSection" class="hidden">
+        <div class="upload-area">
+          <div class="upload-icon">📊</div>
+          <h3>Google Sheets Integration</h3>
+          <p>Pilih nama reviewer dan masukkan URL atau ID Spreadsheet</p>
+          
+          <!-- Reviewer Selection -->
+          <div style="margin-bottom: 1rem;">
+            <label for="reviewerSelect" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Pilih Reviewer:</label>
+            <select id="reviewerSelect" class="form-input" style="width: 100%; max-width: 500px; padding: 0.8rem; font-size: 1rem;">
+              <option value="">-- Pilih Reviewer --</option>
+              <option value="Budi">Budi</option>
+              <option value="Ema">Ema</option>
+              <option value="Alo">Alo</option>
+              <option value="Yona">Yona</option>
+              <option value="Gunawan">Gunawan</option>
+              <option value="Ibnu">Ibnu</option>
+              <option value="Amin">Amin</option>
+              <option value="Amri">Amri</option>
+              <option value="Mario">Mario</option>
+            </select>
+          </div>
+
+          <input type="text" id="sheetIdInput" class="form-input" placeholder="https://docs.google.com/spreadsheets/d/..." style="width: 100%; max-width: 500px; margin-bottom: 1rem; padding: 0.8rem;">
+          <button class="btn btn-primary" onclick="loadFromSheets()">
+            Load Data from Sheets
+          </button>
+          <p class="text-muted small mt-2" style="font-size: 0.85rem; margin-top: 1rem;">
+            Pastikan Spreadsheet sudah dishare ke Service Account email.
+          </p>
+        </div>
+      </div>
+
       <div id="uploadStatus" class="mt-2 text-center hidden"></div>
     </section>
 
@@ -57,8 +99,11 @@
       <div class="section-header">
         <h2>Daftar Produk</h2>
         <div style="display: flex; gap: 1rem;">
-          <button class="btn btn-primary" onclick="downloadResults()">
+          <button class="btn btn-primary" id="btnDownload" onclick="downloadResults()">
             📥 Download Hasil
+          </button>
+          <button class="btn btn-success hidden" id="btnUpdateSheets" onclick="updateSheets()">
+            📊 Update Spreadsheet
           </button>
           <button class="btn btn-danger" onclick="resetData()">
             🔄 Reset Data
