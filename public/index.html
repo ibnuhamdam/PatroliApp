@@ -111,15 +111,48 @@
         </div>
       </div>
 
-      <div id="productsGrid" class="products-grid">
-        <!-- Products will be inserted here -->
+      <!-- Search Bar -->
+      <div style="margin-bottom: 1.5rem; display: flex; gap: 1rem;">
+        <input type="text" id="searchInput" class="form-input" placeholder="🔍 Cari nama produk..." style="flex: 1; padding: 0.8rem;">
+        <button class="btn btn-primary" onclick="searchProducts()">Cari</button>
       </div>
 
-      <!-- Pagination -->
-      <div class="pagination" id="pagination">
-        <button id="prevBtn" onclick="changePage(-1)">← Sebelumnya</button>
-        <span id="pageInfo">Halaman 1 dari 1</span>
-        <button id="nextBtn" onclick="changePage(1)">Selanjutnya →</button>
+      <div class="split-view-container" style="display: flex; gap: 2rem; align-items: flex-start;">
+        <!-- Left Column: Unreviewed -->
+        <div class="column unreviewed-column" style="flex: 1; min-width: 0;">
+          <div class="column-header" style="background: #e3f2fd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid #bbdefb;">
+            <h3 style="margin: 0; color: #1565c0;">⏳ Belum Direview</h3>
+            <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; color: #546e7a;">Daftar tugas Anda</p>
+          </div>
+          <div id="unreviewedGrid" class="products-grid">
+            <!-- Unreviewed products will be inserted here -->
+          </div>
+          
+          <!-- Pagination (Unreviewed) -->
+          <div class="pagination" id="paginationUnreviewed" style="margin-top: 1rem;">
+            <button id="prevBtnUnreviewed" onclick="changeUnreviewedPage(-1)">←</button>
+            <span id="pageInfoUnreviewed">Hal 1</span>
+            <button id="nextBtnUnreviewed" onclick="changeUnreviewedPage(1)">→</button>
+          </div>
+        </div>
+
+        <!-- Right Column: Reviewed -->
+        <div class="column reviewed-column" style="flex: 1; min-width: 0;">
+          <div class="column-header" style="background: #e8f5e9; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid #c8e6c9;">
+            <h3 style="margin: 0; color: #2e7d32;">✅ Sudah Direview</h3>
+            <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; color: #546e7a;">Riwayat review</p>
+          </div>
+          <div id="reviewedGrid" class="products-grid">
+            <!-- Reviewed products will be inserted here -->
+          </div>
+
+          <!-- Pagination (Reviewed) -->
+          <div class="pagination" id="paginationReviewed" style="margin-top: 1rem;">
+            <button id="prevBtnReviewed" onclick="changeReviewedPage(-1)">←</button>
+            <span id="pageInfoReviewed">Hal 1</span>
+            <button id="nextBtnReviewed" onclick="changeReviewedPage(1)">→</button>
+          </div>
+        </div>
       </div>
     </section>
 

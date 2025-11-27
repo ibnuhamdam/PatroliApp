@@ -145,33 +145,90 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 
 // Endpoint: Get semua produk
 app.get('/api/products', (req, res) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
-  const startIndex = (page - 1) * limit;
-  const endIndex = page * limit;
-  const reviewer = req.query.reviewer;
-
-  // const produkData = productsData.slice(startIndex, endIndex);
-  const produkData = productsData.filter(r => r.reviewer == reviewer && r.hasilPemeriksaan != '');
-  // console.log(reviewer)
-  const paginatedProducts = produkData.slice(startIndex, endIndex);
+  // Pagination params
+  const pageUnreviewed = parseInt(req.query.pageUnreviewed) || 1;
+  const limitUnreviewed = parseInt(req.query.limitUnreviewed) || 10;
+  const pageReviewed = parseInt(req.query.pageReviewed) || 1;
+  const limitReviewed = parseInt(req.query.limitReviewed) || 10;
   
+  const reviewer = req.query.reviewer;
+  const searchQuery = req.query.search ? req.query.search.toLowerCase() : '';
+
+  // 1. Filter by Reviewer
+  let filteredProducts = productsData;
+  if (reviewer) {
+    filteredProducts = productsData.filter(p => p.reviewer === reviewer);
+  }
+
+  // 2. Filter by Search Query (Product Name)
+  if (searchQuery) {
+    filteredProducts = filteredProducts.filter(p => 
+      p.namaProduk.toLowerCase().includes(searchQuery)
+    );
+  }
+
+  // 3. Split into Reviewed and Unreviewed
+  const unreviewed = filteredProducts.filter(p => !p.reviewed);
+  const reviewed = filteredProducts.filter(p => p.reviewed);
+
+  // 4. Pagination for UNREVIEWED
+  const totalUnreviewed = unreviewed.length;
+  const startUnreviewed = (pageUnreviewed - 1) * limitUnreviewed;
+  const endUnreviewed = pageUnreviewed * limitUnreviewed;
+  const paginatedUnreviewed = unreviewed.slice(startUnreviewed, endUnreviewed);
+  const totalPagesUnreviewed = Math.ceil(totalUnreviewed / limitUnreviewed);
+
+  // 5. Pagination for REVIEWED
+  // Sort reviewed by most recently updated (simulated by reverse array order)
+  // Note: If we want consistent pagination, we should sort by ID or something stable if we had timestamps.
+  // For now, reverse is fine assuming append-only log.
+  const reviewedSorted = [...reviewed].reverse(); 
+  
+  const totalReviewed = reviewedSorted.length;
+  const startReviewed = (pageReviewed - 1) * limitReviewed;
+  const endReviewed = pageReviewed * limitReviewed;
+  const paginatedReviewed = reviewedSorted.slice(startReviewed, endReviewed);
+  const totalPagesReviewed = Math.ceil(totalReviewed / limitReviewed);
+
+  // Stats (based on filtered data or global data? Usually global for the reviewer is better context)
+  // Let's keep stats based on the REVIEWER context, ignoring search for the general stats, 
+  // OR we can make stats reflect the search. Let's stick to Reviewer context stats (ignoring search) 
+  // so the user sees their overall progress.
+  
+  // Re-calculate stats based on Reviewer ONLY (ignoring search query for the stats cards)
+  const reviewerProducts = productsData.filter(p => p.reviewer === reviewer);
+  const reviewerReviewed = reviewerProducts.filter(p => p.reviewed);
+
   const stats = {
-    total: productsData.length,
-    reviewed: productsData.filter(p => p.reviewed && p.reviewer === reviewer).length,
-    sesuai: productsData.filter(p => p.hasilReview === 'Sesuai' && p.reviewer === reviewer).length,
-    tidakSesuai: productsData.filter(p => p.hasilReview === 'Tidak Sesuai' && p.reviewer === reviewer).length,
-    cocok: productsData.filter(p => p.hasilReview && p.hasilReview === p.hasilPemeriksaan && p.reviewer === reviewer).length,
-    tidakCocok: productsData.filter(p => p.hasilReview && p.hasilReview !== p.hasilPemeriksaan && p.reviewer === reviewer).length
+    total: reviewerProducts.length,
+    reviewed: reviewerReviewed.length,
+    sesuai: reviewerReviewed.filter(p => p.hasilReview === 'Benar').length,
+    tidakSesuai: reviewerReviewed.filter(p => p.hasilReview === 'Salah').length,
+    cocok: reviewerReviewed.filter(p => p.hasilReview && 
+      ((p.hasilReview === 'Benar' && p.hasilPemeriksaan === 'Sesuai') || 
+       (p.hasilReview === 'Salah' && p.hasilPemeriksaan === 'Tidak Sesuai'))
+    ).length,
+    tidakCocok: reviewerReviewed.filter(p => p.hasilReview && 
+      ((p.hasilReview === 'Benar' && p.hasilPemeriksaan === 'Tidak Sesuai') || 
+       (p.hasilReview === 'Salah' && p.hasilPemeriksaan === 'Sesuai'))
+    ).length
   };
 
   res.json({
-    products: paginatedProducts,
+    unreviewed: paginatedUnreviewed,
+    reviewed: paginatedReviewed,
     stats: stats,
     pagination: {
-      currentPage: page,
-      totalPages: Math.ceil(productsData.length / limit),
-      totalItems: productsData.length
+      unreviewed: {
+        currentPage: pageUnreviewed,
+        totalPages: totalPagesUnreviewed || 1,
+        totalItems: totalUnreviewed
+      },
+      reviewed: {
+        currentPage: pageReviewed,
+        totalPages: totalPagesReviewed || 1,
+        totalItems: totalReviewed
+      }
     }
   });
 });
@@ -252,14 +309,20 @@ app.get('/api/download', (req, res) => {
 
 // Endpoint: Get statistik
 app.get('/api/stats', (req, res) => {
-
   const reviewer = req.query.reviewer;
+  
+  // Filter products by reviewer if specified
+  let filteredProducts = productsData;
+  if (reviewer) {
+    filteredProducts = productsData.filter(p => p.reviewer === reviewer);
+  }
+
   const stats = {
-    total: productsData.length,
-    reviewed: productsData.filter(p => p.reviewed && p.reviewer === reviewer).length,
-    belumReview: productsData.filter(p => !p.reviewed && p.reviewer === reviewer).length,
-    benar: productsData.filter(p => p.hasilReview === 'Benar' && p.reviewer === reviewer).length,
-    salah: productsData.filter(p => p.hasilReview === 'Salah' && p.reviewer === reviewer).length
+    total: filteredProducts.length,
+    reviewed: filteredProducts.filter(p => p.reviewed).length,
+    belumReview: filteredProducts.filter(p => !p.reviewed).length,
+    benar: filteredProducts.filter(p => p.hasilReview === 'Benar').length,
+    salah: filteredProducts.filter(p => p.hasilReview === 'Salah').length
   };
   
   res.json(stats);
@@ -417,7 +480,7 @@ app.post('/api/sheets/update', async (req, res) => {
     
     res.json({
       success: true,
-      message: `Berhasil mengupdate ${result.updatedRows} baris di Google Sheet`
+      message: `Berhasil mengupdate baris di Google Sheet`
     });
 
   } catch (error) {

@@ -1,8 +1,11 @@
 // State Management
-let currentPage = 1;
+let currentUnreviewedPage = 1;
+let currentReviewedPage = 1;
 const itemsPerPage = 10;
-let totalPages = 1;
+let totalUnreviewedPages = 1;
+let totalReviewedPages = 1;
 let currentMode = 'excel'; // 'excel' or 'sheets'
+let searchQuery = '';
 
 // API Base URL - works on both localhost and production
 const API_URL = `${window.location.origin}/api`;
@@ -10,7 +13,98 @@ const API_URL = `${window.location.origin}/api`;
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
+  
+  // Add enter key listener for search
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) {
+    searchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        searchProducts();
+      }
+    });
+  }
 });
+
+// ... (setupEventListeners remains same) ...
+
+// Search Products
+function searchProducts() {
+  const searchInput = document.getElementById('searchInput');
+  searchQuery = searchInput.value.trim();
+  
+  // Reset pages to 1 when searching
+  currentUnreviewedPage = 1;
+  currentReviewedPage = 1;
+  
+  loadProducts();
+}
+
+// Change Unreviewed Page
+function changeUnreviewedPage(delta) {
+  const newPage = currentUnreviewedPage + delta;
+  if (newPage >= 1 && newPage <= totalUnreviewedPages) {
+    currentUnreviewedPage = newPage;
+    loadProducts();
+  }
+}
+
+// Change Reviewed Page
+function changeReviewedPage(delta) {
+  const newPage = currentReviewedPage + delta;
+  if (newPage >= 1 && newPage <= totalReviewedPages) {
+    currentReviewedPage = newPage;
+    loadProducts();
+  }
+}
+
+// Load Products
+async function loadProducts() {
+  const reviewerSelect = document.getElementById('reviewerSelect');
+  const reviewerName = reviewerSelect ? reviewerSelect.value.trim() : '';
+
+  try {
+    const params = new URLSearchParams({
+      pageUnreviewed: currentUnreviewedPage,
+      limitUnreviewed: itemsPerPage,
+      pageReviewed: currentReviewedPage,
+      limitReviewed: itemsPerPage,
+      reviewer: reviewerName,
+      search: searchQuery
+    });
+
+    const response = await fetch(`${API_URL}/products?${params.toString()}`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error('Gagal memuat produk');
+    }
+
+    // Update pagination info
+    totalUnreviewedPages = data.pagination.unreviewed.totalPages;
+    totalReviewedPages = data.pagination.reviewed.totalPages;
+    
+    updatePaginationUI(data.pagination);
+
+    // Render products
+    renderProducts(data.unreviewed, data.reviewed);
+
+  } catch (error) {
+    showNotification(error.message, 'error');
+  }
+}
+
+// Update Pagination UI
+function updatePaginationUI(pagination) {
+  // Unreviewed Pagination
+  document.getElementById('pageInfoUnreviewed').textContent = `Hal ${pagination.unreviewed.currentPage} dari ${pagination.unreviewed.totalPages}`;
+  document.getElementById('prevBtnUnreviewed').disabled = pagination.unreviewed.currentPage === 1;
+  document.getElementById('nextBtnUnreviewed').disabled = pagination.unreviewed.currentPage === pagination.unreviewed.totalPages;
+
+  // Reviewed Pagination
+  document.getElementById('pageInfoReviewed').textContent = `Hal ${pagination.reviewed.currentPage} dari ${pagination.reviewed.totalPages}`;
+  document.getElementById('prevBtnReviewed').disabled = pagination.reviewed.currentPage === 1;
+  document.getElementById('nextBtnReviewed').disabled = pagination.reviewed.currentPage === pagination.reviewed.totalPages;
+}
 
 // Setup Event Listeners
 function setupEventListeners() {
@@ -99,49 +193,51 @@ async function handleFileSelect(event) {
   }
 }
 
-// Load Products
-async function loadProducts() {
-  const reviewerSelect = document.getElementById('reviewerSelect');
-  const reviewerName = reviewerSelect.value.trim();
 
-  try {
-    const response = await fetch(`${API_URL}/products?page=${currentPage}&limit=${itemsPerPage}&reviewer=${reviewerName}`);
-    const data = await response.json();
-
-    // console.log(data)
-
-    if (!response.ok) {
-      throw new Error('Gagal memuat produk');
-    }
-
-    // Update pagination info
-    totalPages = data.pagination.totalPages;
-    updatePaginationUI();
-
-    // Render products
-    renderProducts(data.products);
-
-  } catch (error) {
-    showNotification(error.message, 'error');
-  }
-}
 
 // Render Products
-function renderProducts(products) {
-  const grid = document.getElementById('productsGrid');
+function renderProducts(unreviewedProducts, reviewedProducts) {
+  const unreviewedGrid = document.getElementById('unreviewedGrid');
+  const reviewedGrid = document.getElementById('reviewedGrid');
   
-  if (products.length === 0) {
-    grid.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-state-icon">📦</div>
-        <h3>Tidak Ada Produk</h3>
-        <p>Tidak ada produk untuk ditampilkan</p>
+  // Render Unreviewed
+  if (!unreviewedProducts || unreviewedProducts.length === 0) {
+    unreviewedGrid.innerHTML = `
+      <div class="empty-state" style="padding: 2rem;">
+        <div class="empty-state-icon" style="font-size: 2rem;">🎉</div>
+        <h3 style="font-size: 1.2rem;">Semua Selesai!</h3>
+        <p style="font-size: 0.9rem;">Tidak ada produk yang perlu direview.</p>
       </div>
     `;
-    return;
+  } else {
+    unreviewedGrid.innerHTML = unreviewedProducts.map(product => createProductCard(product)).join('');
   }
 
-  grid.innerHTML = products.map(product => `
+  // Render Reviewed
+  if (!reviewedProducts || reviewedProducts.length === 0) {
+    reviewedGrid.innerHTML = `
+      <div class="empty-state" style="padding: 2rem;">
+        <div class="empty-state-icon" style="font-size: 2rem;">📝</div>
+        <h3 style="font-size: 1.2rem;">Belum Ada Review</h3>
+        <p style="font-size: 0.9rem;">Produk yang sudah direview akan muncul di sini.</p>
+      </div>
+    `;
+  } else {
+    reviewedGrid.innerHTML = reviewedProducts.map(product => createProductCard(product)).join('');
+  }
+
+  // Trigger auto fetch for products without images (only for unreviewed to save resources, or both?)
+  // Let's do both but prioritize unreviewed if needed.
+  const allProducts = [...(unreviewedProducts || []), ...(reviewedProducts || [])];
+  allProducts.forEach(product => {
+    if (!product.urlImage && product.urlProduk) {
+      autoFetchImage(product.id, product.urlProduk);
+    }
+  });
+}
+
+function createProductCard(product) {
+  return `
     <div class="product-card ${product.reviewed ? 'reviewed' : ''}" data-id="${product.id}">
       <div class="product-header">
         <span class="product-id">#${product.id}</span>
@@ -219,15 +315,7 @@ function renderProducts(products) {
         </button>
       </div>
     </div>
-    </div>
-  `).join('');
-
-  // Trigger auto fetch for products without images
-  products.forEach(product => {
-    if (!product.urlImage && product.urlProduk) {
-      autoFetchImage(product.id, product.urlProduk);
-    }
-  });
+  `;
 }
 
 // Review Product
@@ -508,26 +596,6 @@ async function updateSheets() {
   }
 }
 
-// Pagination
-function changePage(direction) {
-  const newPage = currentPage + direction;
-  
-  if (newPage < 1 || newPage > totalPages) {
-    return;
-  }
-  
-  currentPage = newPage;
-  loadProducts();
-  
-  // Scroll to top
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function updatePaginationUI() {
-  document.getElementById('pageInfo').textContent = `Halaman ${currentPage} dari ${totalPages}`;
-  document.getElementById('prevBtn').disabled = currentPage === 1;
-  document.getElementById('nextBtn').disabled = currentPage === totalPages;
-}
 
 // Helper Functions
 function getReviewStatusClass(hasil_review) {
