@@ -499,7 +499,7 @@ app.post('/api/scrape-image', async (req, res) => {
       return res.status(400).json({ error: 'URL produk diperlukan' });
     }
 
-    console.log(url);
+    // console.log(url);
 
     // Launch Puppeteer
     const browser = await puppeteer.launch({

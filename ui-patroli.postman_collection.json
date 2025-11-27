@@ -1,0 +1,312 @@
+{
+	"info": {
+		"_postman_id": "b3f8e4a1-1b2c-4d5e-9f0a-1b2c3d4e5f6a",
+		"name": "UI Patroli API",
+		"description": "Collection for testing UI Patroli API endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Upload Excel File",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": []
+						}
+					]
+				},
+				"url": {
+					"raw": "{{base_url}}/api/upload",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"upload"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Read Google Sheets",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"spreadsheetId\": \"YOUR_SPREADSHEET_ID\",\n    \"reviewerName\": \"Gunawan\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/sheets/read",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"sheets",
+						"read"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Google Sheets",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"spreadsheetId\": \"YOUR_SPREADSHEET_ID\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/sheets/update",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"sheets",
+						"update"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Products (Paginated & Filtered)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/products?pageUnreviewed=1&limitUnreviewed=10&pageReviewed=1&limitReviewed=10&reviewer=Gunawan&search=",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"products"
+					],
+					"query": [
+						{
+							"key": "pageUnreviewed",
+							"value": "1"
+						},
+						{
+							"key": "limitUnreviewed",
+							"value": "10"
+						},
+						{
+							"key": "pageReviewed",
+							"value": "1"
+						},
+						{
+							"key": "limitReviewed",
+							"value": "10"
+						},
+						{
+							"key": "reviewer",
+							"value": "Gunawan"
+						},
+						{
+							"key": "search",
+							"value": ""
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Product by ID",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/products/1",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"products",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Product Review",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"hasilReview\": \"Benar\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/products/1",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"products",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Stats",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/stats?reviewer=Gunawan",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"stats"
+					],
+					"query": [
+						{
+							"key": "reviewer",
+							"value": "Gunawan"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Download Excel",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/download",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"download"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Scrape Image",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"productId\": 1,\n    \"url\": \"https://katalog.inaproc.id/solusi-klik-suroboyo-mandiri/kursi-audiotorium-oberyn\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/scrape-image",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"scrape-image"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "AI Explain Product",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"productName\": \"Kursi Kantor\",\n    \"categoryName\": \"Furniture\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/ai/explain-product",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"ai",
+						"explain-product"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Reset Data",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/reset",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"reset"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3000",
+			"type": "string"
+		}
+	]
+}
