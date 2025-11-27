@@ -8,12 +8,14 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const sheetsService = require('./services/sheetsService');
 const axios = require('axios');
 const cheerio = require('cheerio');
+const env = require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'AIzaSyAY74qf37C81flxSNnEeIQs2CKIK2gUjWo');
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// console.log(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
 // Middleware
