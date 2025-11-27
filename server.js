@@ -490,53 +490,160 @@ app.post('/api/sheets/update', async (req, res) => {
   }
 });
 
-// Endpoint: Scrape Image (Puppeteer)
+// Endpoint: Scrape Image (Puppeteer with Cheerio Fallback)
 app.post('/api/scrape-image', async (req, res) => {
-  try {
-    const { productId, url } = req.body;
+  const { productId, url } = req.body;
+  
+  if (!url) {
+    return res.status(400).json({ error: 'URL produk diperlukan' });
+  }
+
+  console.log(`[Scraper] Processing product ${productId}: ${url}`);
+
+  // Helper function to extract image from HTML string using Cheerio
+  const extractImageWithCheerio = (html) => {
+    const $ = cheerio.load(html);
     
-    if (!url) {
-      return res.status(400).json({ error: 'URL produk diperlukan' });
+    // Helper to check if image is likely a logo or icon
+    const isLikelyUseless = (src, alt, className) => {
+      const s = (src || '').toLowerCase();
+      const a = (alt || '').toLowerCase();
+      const c = (className || '').toLowerCase();
+      
+      return s.includes('logo') || 
+             s.includes('icon') || 
+             s.includes('assets') || // Common for static assets
+             a.includes('logo') || 
+             c.includes('logo') ||
+             c.includes('icon');
+    };
+
+    // Priority 1: OG Image
+    const ogImage = $('meta[property="og:image"]').attr('content');
+    if (ogImage) return ogImage;
+    
+    // Priority 2: Twitter Image
+    const twitterImage = $('meta[name="twitter:image"]').attr('content');
+    if (twitterImage) return twitterImage;
+    
+    // Priority 3: JSON-LD (Schema.org)
+    let schemaImage = null;
+    $('script[type="application/ld+json"]').each((i, elem) => {
+      try {
+        const data = JSON.parse($(elem).html());
+        if (data.image) {
+          if (Array.isArray(data.image)) schemaImage = data.image[0];
+          else if (typeof data.image === 'string') schemaImage = data.image;
+          else if (data.image.url) schemaImage = data.image.url;
+        }
+      } catch (e) {}
+    });
+    if (schemaImage) return schemaImage;
+
+    // Priority 4: Common Product Selectors
+    const selectors = [
+      '.product-image img',
+      '.product-detail img',
+      '.gallery-image img',
+      '.main-image img',
+      'img[itemprop="image"]',
+      '.sticky-section-image img',
+      '#product-image',
+      '.img-product'
+    ];
+
+    for (const selector of selectors) {
+      const img = $(selector).first();
+      if (img.length) {
+        const src = img.attr('src') || img.attr('data-src') || img.attr('data-original');
+        if (src && !isLikelyUseless(src, img.attr('alt'), img.attr('class'))) {
+          return src;
+        }
+      }
     }
+    
+    // Priority 5: Largest Image Heuristic
+    let largestImg = null;
+    // This is hard with Cheerio as we don't have dimensions. 
+    // We'll just look for the first substantial image in the body that isn't a logo.
+    let foundImg = null;
+    $('img').each((i, elem) => {
+      if (foundImg) return; // Stop after finding one
+      const src = $(elem).attr('src');
+      if (src && !isLikelyUseless(src, $(elem).attr('alt'), $(elem).attr('class'))) {
+        foundImg = src;
+      }
+    });
 
-    console.log(url);
+    return foundImg;
+  };
 
-    // Launch Puppeteer
+  // Strategy 1: Try Cheerio/Axios first (Faster, less resource intensive)
+  try {
+    console.log(`[Scraper] Attempting Strategy 1: Axios + Cheerio for ${url}`);
+    const response = await axios.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9'
+      },
+      timeout: 10000 // 10s timeout for Axios
+    });
+
+    const imageUrl = extractImageWithCheerio(response.data);
+    if (imageUrl) {
+      console.log(`[Scraper] Found image via Cheerio: ${imageUrl}`);
+      
+      // Update in-memory data
+      const product = productsData.find(p => p.id === parseInt(productId));
+      if (product) product.urlImage = imageUrl;
+
+      return res.json({ success: true, urlImage: imageUrl, source: 'cheerio' });
+    }
+    console.log(`[Scraper] Cheerio found no image. Falling back to Puppeteer...`);
+
+  } catch (error) {
+    console.warn(`[Scraper] Axios/Cheerio failed: ${error.message}. Falling back to Puppeteer...`);
+  }
+
+  // Strategy 2: Puppeteer (Fallback for dynamic sites)
+  try {
+    console.log(`[Scraper] Attempting Strategy 2: Puppeteer for ${url}`);
+    
     const browser = await puppeteer.launch({
-      headless: 'new',
+      headless: true, // Use new headless mode if available, or true
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage', // Critical for Docker/Railway (prevents shared memory crashes)
+        '--disable-dev-shm-usage',
         '--disable-gpu',
         '--no-first-run',
         '--no-zygote',
-        '--single-process', // Optional: use if memory is extremely tight
+        '--single-process',
+        '--disable-extensions'
       ],
-      timeout: 60000 // Increase timeout to 60s
+      timeout: 30000
     });
     
     const page = await browser.newPage();
     
-    // Set User-Agent to mimic a real browser
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    
-    // Navigate to URL
-    // Optimize: Block images, fonts, and stylesheets to save resources
+    // Optimize: Block resources
     await page.setRequestInterception(true);
     page.on('request', (req) => {
-      if (['image', 'stylesheet', 'font', 'media'].includes(req.resourceType())) {
+      if (['font', 'stylesheet', 'media'].includes(req.resourceType())) {
         req.abort();
       } else {
         req.continue();
       }
     });
 
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    
+    // Navigate
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-    // Extract image URL
+    // Extract
     const imageUrl = await page.evaluate(() => {
-      // Helper to check if image is likely a logo or icon
       const isLikelyUseless = (img) => {
         const src = img.src.toLowerCase();
         const alt = (img.alt || '').toLowerCase();
@@ -547,43 +654,35 @@ app.post('/api/scrape-image', async (req, res) => {
                alt.includes('logo') || 
                className.includes('logo') ||
                className.includes('icon') ||
-               img.width < 100 || // Skip very small images
-               img.height < 100;
+               img.width < 50 || 
+               img.height < 50;
       };
 
-      // Priority 1: OG Image (Meta Tag)
-      const ogImage = document.querySelector('meta[property="og:image"]');
-      if (ogImage && ogImage.content) return ogImage.content;
+      // Priority 1: OG/Twitter
+      const og = document.querySelector('meta[property="og:image"]');
+      if (og && og.content) return og.content;
       
-      // Priority 2: Twitter Image (Meta Tag)
-      const twitterImage = document.querySelector('meta[name="twitter:image"]');
-      if (twitterImage && twitterImage.content) return twitterImage.content;
-      
-      // Priority 3: Common Product Image Selectors
-      const selectors = [
-        '.product-image img',
-        '.product-detail img',
-        '.gallery-image img',
-        '.main-image img',
-        'img[itemprop="image"]',
-        '.sticky-section-image img'
-      ];
+      const tw = document.querySelector('meta[name="twitter:image"]');
+      if (tw && tw.content) return tw.content;
 
-      for (const selector of selectors) {
-        const img = document.querySelector(selector);
-        if (img && img.src && !isLikelyUseless(img)) {
-          return img.src;
-        }
-      }
+      // Priority 2: Selectors
+      const selectors = [
+        '.product-image img', '.product-detail img', '.gallery-image img', 
+        '.main-image img', 'img[itemprop="image"]', '.sticky-section-image img'
+      ];
       
-      // Priority 4: Heuristic - Find the largest image on the page
+      for (const sel of selectors) {
+        const img = document.querySelector(sel);
+        if (img && img.src && !isLikelyUseless(img)) return img.src;
+      }
+
+      // Priority 3: Largest Image
       const allImages = Array.from(document.querySelectorAll('img'));
       let largestImg = null;
       let maxArea = 0;
 
       for (const img of allImages) {
         if (isLikelyUseless(img)) continue;
-
         const area = img.width * img.height;
         if (area > maxArea) {
           maxArea = area;
@@ -591,27 +690,25 @@ app.post('/api/scrape-image', async (req, res) => {
         }
       }
 
-      if (largestImg) return largestImg.src;
-      
-      return null;
+      return largestImg ? largestImg.src : null;
     });
 
     await browser.close();
 
     if (imageUrl) {
+      console.log(`[Scraper] Found image via Puppeteer: ${imageUrl}`);
+      
       // Update in-memory data
       const product = productsData.find(p => p.id === parseInt(productId));
-      if (product) {
-        product.urlImage = imageUrl;
-      }
+      if (product) product.urlImage = imageUrl;
       
-      res.json({ success: true, urlImage: imageUrl });
+      return res.json({ success: true, urlImage: imageUrl, source: 'puppeteer' });
     } else {
-      res.status(404).json({ error: 'Gambar tidak ditemukan' });
+      throw new Error('Gambar tidak ditemukan oleh Puppeteer');
     }
 
   } catch (error) {
-    console.error(`[Scraper] 💥 Error scraping image: ${error.message}`);
+    console.error(`[Scraper] 💥 All strategies failed for ${url}: ${error.message}`);
     res.status(500).json({ error: 'Gagal mengambil gambar: ' + error.message });
   }
 });
