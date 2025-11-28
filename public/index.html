@@ -17,45 +17,23 @@
 
     <!-- Upload Section -->
     <section class="upload-section">
-      <div class="mode-switch">
-        <button class="btn-mode active" id="btnModeExcel" onclick="switchMode('excel')">Upload Excel</button>
-        <button class="btn-mode" id="btnModeSheets" onclick="switchMode('sheets')">Google Sheets</button>
-      </div>
-
-      <!-- Excel Mode -->
-      <div id="excelSection">
-        <div class="upload-area" id="uploadArea">
-          <div class="upload-icon">📁</div>
-          <h3>Upload File Excel</h3>
-          <p>Drag & drop file Excel atau klik untuk memilih file</p>
-          <input type="file" id="fileInput" accept=".xlsx,.xls">
-          <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
-            Pilih File Excel
-          </button>
-        </div>
-      </div>
-
-      <div id="sheetsSection" class="hidden">
+      <!-- Google Sheets Section (Only Method) -->
+      <div id="sheetsSection">
         <div class="upload-area">
           <div class="upload-icon">📊</div>
           <h3>Google Sheets Integration</h3>
-          <p>Pilih nama reviewer dan masukkan URL atau ID Spreadsheet</p>
+          <p>Pilih karakter Anda dan masukkan URL atau ID Spreadsheet</p>
           
-          <!-- Reviewer Selection -->
+          <!-- Character Selection Button -->
           <div style="margin-bottom: 1rem;">
-            <label for="reviewerSelect" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Pilih Reviewer:</label>
-            <select id="reviewerSelect" class="form-input" style="width: 100%; max-width: 500px; padding: 0.8rem; font-size: 1rem;">
-              <option value="">-- Pilih Reviewer --</option>
-              <option value="Budi">Budi</option>
-              <option value="Ema">Ema</option>
-              <option value="Alo">Alo</option>
-              <option value="Yona">Yona</option>
-              <option value="Gunawan">Gunawan</option>
-              <option value="Ibnu">Ibnu</option>
-              <option value="Amin">Amin</option>
-              <option value="Amri">Amri</option>
-              <option value="Mario">Mario</option>
-            </select>
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Pilih Reviewer:</label>
+            <button id="characterSelectBtn" class="character-select-btn" onclick="openCharacterModal()">
+              <div class="selected-character-display">
+                <div class="character-avatar-small">👤</div>
+                <span id="selectedCharacterName">Pilih Karakter</span>
+              </div>
+              <span class="arrow">▼</span>
+            </button>
           </div>
 
           <input type="text" id="sheetIdInput" class="form-input" placeholder="https://docs.google.com/spreadsheets/d/..." style="width: 100%; max-width: 500px; margin-bottom: 1rem; padding: 0.8rem;">
@@ -111,9 +89,13 @@
         </div>
       </div>
 
-      <!-- Search Bar -->
-      <div style="margin-bottom: 1.5rem; display: flex; gap: 1rem;">
-        <input type="text" id="searchInput" class="form-input" placeholder="🔍 Cari nama produk..." style="flex: 1; padding: 0.8rem;">
+      <!-- Search Bar & Filter -->
+      <div style="margin-bottom: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+        <select id="categoryFilter" class="form-input" style="min-width: 200px; padding: 0.8rem;" onchange="filterByCategory()">
+          <option value="">Semua Kategori</option>
+          <!-- Categories will be populated here -->
+        </select>
+        <input type="text" id="searchInput" class="form-input" placeholder="🔍 Cari nama produk..." style="flex: 1; padding: 0.8rem; min-width: 200px;">
         <button class="btn btn-primary" onclick="searchProducts()">Cari</button>
       </div>
 
@@ -160,9 +142,91 @@
     <div class="empty-state" id="emptyState">
       <div class="empty-state-icon">📦</div>
       <h3>Belum Ada Data</h3>
-      <p>Upload file Excel untuk memulai verifikasi produk</p>
+      <p>Load data dari Google Spreadsheet untuk memulai verifikasi produk</p>
     </div>
   </div>
+
+  <!-- Character Selection Modal -->
+  <div id="characterModal" class="character-modal">
+    <div class="character-modal-content">
+      <div class="character-modal-header">
+        <h2>🎮 Choose Your Character</h2>
+        <button class="character-modal-close" onclick="closeCharacterModal()">✕</button>
+      </div>
+      <div class="character-grid">
+        <!-- Character Cards -->
+        <div class="character-card" onclick="selectCharacter('Budi', 'cowo')">
+          <div class="character-avatar">
+            <img src="/assets/character/cowo/character_cowo_professional.png" alt="Budi">
+          </div>
+          <div class="character-name">Budi</div>
+        </div>
+        <div class="character-card" onclick="selectCharacter('Ema', 'cewe')">
+          <div class="character-avatar">
+            <img src="/assets/character/cewe/character_cewe_fashion.png" alt="Ema">
+          </div>
+          <div class="character-name">Ema</div>
+        </div>
+        <div class="character-card" onclick="selectCharacter('Ibnu', 'cowo')">
+          <div class="character-avatar">
+            <img src="/assets/character/cowo/Character_cowo_pintar.png" alt="Ibnu">
+          </div>
+          <div class="character-name">Ibnu</div>
+        </div>
+        <div class="character-card" onclick="selectCharacter('Yona', 'cewe')">
+          <div class="character-avatar">
+            <img src="/assets/character/cewe/character_cewe_kopi.png" alt="Yona">
+          </div>
+          <div class="character-name">Yona</div>
+        </div>
+        <div class="character-card" onclick="selectCharacter('Alo', 'cewe')">
+          <div class="character-avatar">
+            <img src="/assets/character/cewe/character_cewe_fashion.png" alt="Alo">
+          </div>
+          <div class="character-name">Alo</div>
+        </div>
+        <div class="character-card" onclick="selectCharacter('Amin', 'cowo')">
+          <div class="character-avatar">
+            <img src="/assets/character/cowo/character_cowo_street.png" alt="Amin">
+          </div>
+          <div class="character-name">Amin</div>
+        </div>
+        <div class="character-card" onclick="selectCharacter('Mario', 'cowo')">
+          <div class="character-avatar">
+            <img src="/assets/character/cowo/character_cowo_explore.png" alt="Mario">
+          </div>
+          <div class="character-name">Mario</div>
+        </div>
+        <div class="character-card" onclick="selectCharacter('Gunawan', 'cowo')">
+          <div class="character-avatar">
+            <img src="/assets/character/cowo/character_cowo_professional.png" alt="Gunawan">
+          </div>
+          <div class="character-name">Gunawan</div>
+        </div>
+        <div class="character-card" onclick="selectCharacter('Amri', 'cowo')">
+          <div class="character-avatar">
+            <img src="/assets/character/cowo/Character_cowo_pintar.png" alt="Amri">
+          </div>
+          <div class="character-name">Amri</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer style="text-align: center; padding: 2rem 1rem; margin-top: 3rem; border-top: 1px solid var(--border-color); color: var(--text-secondary); font-size: 0.9rem;">
+    <p style="margin: 0 0 0.5rem 0;">
+      Dibuat dan dikelola oleh <strong style="color: var(--text-primary);">IHMS</strong>
+    </p>
+    <p style="margin: 0;">
+      <a href="https://instagram.com/syai06" target="_blank" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; transition: opacity 0.2s;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle;">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+        </svg>
+        @syai06
+      </a>
+    </p>
+  </footer>
 
   <script src="/js/app.js"></script>
 </body>
