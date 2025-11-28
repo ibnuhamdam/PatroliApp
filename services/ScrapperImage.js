@@ -30,15 +30,15 @@ async function scrapeProductImages(url) {
     console.log('[Scraper] Page loaded, waiting for images...');
     
     // Tunggu singkat saja - gambar pertama biasanya sudah loaded
-    await delay(2000);
+    await delay(100);
 
     console.log('[Scraper] Extracting images (first few only)...');
     const imageUrls = await page.evaluate(() => {
       const imgs = Array.from(document.querySelectorAll('img'));
       
-      // Ambil hanya 5 gambar pertama untuk mempercepat
+      // Ambil hanya 3 gambar pertama untuk mempercepat
       return imgs
-        .slice(0, 5)
+        .slice(0, 2)
         .map(img => {
           // Coba berbagai atribut untuk mendapatkan URL gambar
           return img.src || img.getAttribute('data-src') || img.getAttribute('data-lazy-src');

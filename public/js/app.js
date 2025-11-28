@@ -3,7 +3,16 @@ const API_URL = `${window.location.origin}/api`;
 
 async function loadProducts() {
 
+  let currentUnreviewedPage = 1;
+  let currentReviewedPage = 1;
+  const itemsPerPage = 10;
+  let totalUnreviewedPages = 1;
+  let totalReviewedPages = 1;
+  let currentMode = 'excel'; // 'excel' or 'sheets'
+  let searchQuery = '';
   const reviewerName = selectedReviewer || '';
+  const selectedCategory = document.getElementById('categoryFilter').value;
+  
 
   try {
     const params = new URLSearchParams({
@@ -229,6 +238,27 @@ async function loadStats() {
     // Update progress bar
     const progress = stats.total > 0 ? (stats.reviewed / stats.total) * 100 : 0;
     document.getElementById('progressFill').style.width = `${progress}%`;
+
+  } catch (error) {
+    console.error('Error loading stats:', error);
+  }
+}
+
+async function loadCategories() {
+  const reviewerName = selectedReviewer || '';
+  const categoryFilter = document.getElementById('categoryFilter');
+
+  try {
+    const response = await fetch(`${API_URL}/categories`);
+    const category = await response.json();
+    // console.log(category);
+
+    if (!response.ok) {
+      throw new Error('Gagal memuat Category');
+    }
+
+    categoryFilter.innerHTML = `<option value="">Semua Kategori</option>
+    ${category.map(cat => `<option value="${cat}">${cat}</option>`).join('')}`;
 
   } catch (error) {
     console.error('Error loading stats:', error);
@@ -682,3 +712,64 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+  setupEventListeners();
+  
+  // Add enter key listener for search
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) {
+    searchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        searchProducts();
+      }
+    });
+  }
+});
+
+// ... (setupEventListeners remains same) ...
+
+// Search Products
+function searchProducts() {
+  const searchInput = document.getElementById('searchInput');
+  searchQuery = searchInput.value.trim();
+  
+  // Reset pages to 1 when searching
+  currentUnreviewedPage = 1;
+  currentReviewedPage = 1;
+  
+  loadProducts();
+}
+
+// Change Unreviewed Page
+function filterByCategory() {
+  const categoryFilter = document.getElementById('categoryFilter');
+  const selectedCategory = categoryFilter.value;
+  
+  // Reset pages to 1 when filtering
+  currentUnreviewedPage = 1;
+  currentReviewedPage = 1;
+  
+  loadProducts();
+}
+
+// Change Unreviewed Page
+function changeUnreviewedPage(delta) {
+  const newPage = currentUnreviewedPage + delta;
+  if (newPage >= 1 && newPage <= totalUnreviewedPages) {
+    currentUnreviewedPage = newPage;
+    loadProducts();
+  }
+}
+
+// Change Reviewed Page
+function changeReviewedPage(delta) {
+  const newPage = currentReviewedPage + delta;
+  if (newPage >= 1 && newPage <= totalReviewedPages) {
+    currentReviewedPage = newPage;
+    loadProducts();
+  }
+}
+
+
