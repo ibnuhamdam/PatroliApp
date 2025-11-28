@@ -123,7 +123,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
       kategoriLv2: item['kategori_lv2'] || '',
       kategoriLv3: item['kategori_lv3'] || '',
       namaProduk: item['nama_produk'] || '',
-      urlImage: item['url_image'] || '',
+      urlImage: item['image_url'] || item['url_image'] || '',
       urlProduk: item['url_produk'] || '',
       hasilPemeriksaan: item['hasil pemeriksa'] || '', // MANDATORY - read-only
       hasilReview: item['hasil_review'] || null,   // Will be filled via app
@@ -157,10 +157,13 @@ app.get('/api/products', (req, res) => {
   const category = req.query.category; // New: Category filter
   const searchQuery = req.query.search ? req.query.search.toLowerCase() : '';
 
+  // Filter empty hasil pemeriksaan
+  const validProducts = productsData.filter(p => p.hasilPemeriksaan && p.hasilPemeriksaan.toString().trim() !== '');
+
   // 1. Filter by Reviewer
-  let filteredProducts = productsData;
+  let filteredProducts = validProducts;
   if (reviewer) {
-    filteredProducts = productsData.filter(p => p.reviewer === reviewer);
+    filteredProducts = validProducts.filter(p => p.reviewer === reviewer);
   }
 
   // 2. Filter by Category (New)
@@ -201,7 +204,7 @@ app.get('/api/products', (req, res) => {
   // so the user sees their overall progress.
   
   // Re-calculate stats based on Reviewer ONLY (ignoring search/category query for the stats cards)
-  const reviewerProducts = productsData.filter(p => p.reviewer === reviewer);
+  const reviewerProducts = validProducts.filter(p => p.reviewer === reviewer);
   const reviewerReviewed = reviewerProducts.filter(p => p.reviewed);
 
   const stats = {
@@ -242,9 +245,11 @@ app.get('/api/products', (req, res) => {
 app.get('/api/categories', (req, res) => {
   const reviewer = req.query.reviewer;
   
-  let filteredProducts = productsData;
+  const validProducts = productsData.filter(p => p.hasilPemeriksaan && p.hasilPemeriksaan.toString().trim() !== '');
+
+  let filteredProducts = validProducts;
   if (reviewer) {
-    filteredProducts = productsData.filter(p => p.reviewer === reviewer);
+    filteredProducts = validProducts.filter(p => p.reviewer === reviewer);
   }
 
   // Ambil unique kategori Lv 3
@@ -332,9 +337,11 @@ app.get('/api/stats', (req, res) => {
   const reviewer = req.query.reviewer;
   
   // Filter products by reviewer if specified
-  let filteredProducts = productsData;
+  const validProducts = productsData.filter(p => p.hasilPemeriksaan && p.hasilPemeriksaan.toString().trim() !== '');
+
+  let filteredProducts = validProducts;
   if (reviewer) {
-    filteredProducts = productsData.filter(p => p.reviewer === reviewer);
+    filteredProducts = validProducts.filter(p => p.reviewer === reviewer);
   }
 
   const stats = {
@@ -458,7 +465,7 @@ app.post('/api/sheets/read', async (req, res) => {
       kategoriLv2: item['kategori_lv2'] || '',
       kategoriLv3: item['kategori_lv3'] || '',
       namaProduk: item['nama_produk'] || '',
-      urlImage: item['url_image'] || '',
+      urlImage: item['image_url'] || item['url_image'] || '',
       urlProduk: item['url_produk'] || '',
       hasilPemeriksaan: item['hasil pemeriksa'] || '',
       hasilReview: item['Review Validator'] || item['hasil_review'] || null, // Check both new and old column names

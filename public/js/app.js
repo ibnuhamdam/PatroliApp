@@ -96,14 +96,7 @@ function renderProducts(unreviewedProducts, reviewedProducts) {
     reviewedGrid.innerHTML = reviewedProducts.map(product => createProductCard(product)).join('');
   }
 
-  // Trigger auto fetch for products without images (only for unreviewed to save resources, or both?)
-  // Let's do both but prioritize unreviewed if needed.
-  const allProducts = [...(unreviewedProducts || []), ...(reviewedProducts || [])];
-  allProducts.forEach(product => {
-    if (!product.urlImage && product.urlProduk) {
-      autoFetchImage(product.id, product.urlProduk);
-    }
-  });
+
 }
 
 function createProductCard(product) {
@@ -138,14 +131,13 @@ function createProductCard(product) {
       <div class="product-image" id="img-container-${product.id}">
         ${product.urlImage ? 
           `<img src="${escapeHtml(product.urlImage.trim())}" alt="${escapeHtml(product.namaProduk)}" referrerpolicy="no-referrer" loading="lazy" onerror="this.onerror=null; this.src='https://via.placeholder.com/150?text=No+Image'">` :
-          `<div class="loading-image">
-             <div class="loading"></div>
-             <p>Mengambil gambar...</p>
+           `<div class="no-image">
+             <p>Gambar tidak tersedia</p>
            </div>`
         }
       </div>
       
-      ${!product.urlImage ? `<script>autoFetchImage(${product.id}, '${escapeHtml(product.urlProduk)}')</script>` : ''}
+
 
       <button class="btn-ai" onclick="explainProduct('${escapeHtml(product.namaProduk)}', '${escapeHtml(product.kategoriLv3)}', ${product.id})">
         🤖 Tanya AI tentang produk ini
@@ -543,38 +535,7 @@ function closeAIModal() {
   }
 }
 
-// Auto Fetch Image
-async function autoFetchImage(productId, url) {
-  try {
-    const response = await fetch(`${API_URL}/scrape-image`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ productId, url })
-    });
 
-    const data = await response.json();
-
-    // console.log(data);
-
-    if (data.success && data.urlImage) {
-      const container = document.getElementById(`img-container-${productId}`);
-      if (container) {
-        container.innerHTML = `<img src="${data.urlImage}" alt="Product Image" referrerpolicy="no-referrer" loading="lazy" onerror="this.onerror=null; this.src='https://via.placeholder.com/150?text=No+Image'">`;
-      }
-    } else {
-      throw new Error(data.error || 'Gambar tidak ditemukan');
-    }
-
-  } catch (error) {
-    console.error(`Failed to fetch image for product ${productId}:`, error);
-    const container = document.getElementById(`img-container-${productId}`);
-    if (container) {
-      container.innerHTML = `<div class="no-image">Gambar tidak tersedia</div>`;
-    }
-  }
-}
 
 // Character Selection Functions
 let selectedReviewer = '';

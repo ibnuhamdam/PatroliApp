@@ -23,7 +23,7 @@ const sheets = google.sheets({ version: 'v4', auth });
  * @param {string} range The range to read (e.g., 'Sheet1!A:Z').
  * @returns {Promise<Array<Object>>} Array of objects representing the rows.
  */
-async function readSpreadsheet(spreadsheetId, range = 'Sheet1!A:Z') {
+async function readSpreadsheet(spreadsheetId, range = 'Sheet1') {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
