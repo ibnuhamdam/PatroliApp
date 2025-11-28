@@ -701,6 +701,10 @@ async function loadFromSheets() {
   }
 }
 
+// Setup Event Listeners
+function setupEventListeners() {
+}
+
 // Close modal when clicking outside
 document.addEventListener('DOMContentLoaded', () => {
   const modal = document.getElementById('characterModal');

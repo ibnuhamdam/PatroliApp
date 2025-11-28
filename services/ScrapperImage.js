@@ -24,13 +24,13 @@ async function scrapeProductImages(url) {
     console.log('[Scraper] Navigating to URL...');
     await page.goto(url, {
       waitUntil: 'domcontentloaded', // Lebih cepat - cukup untuk gambar pertama
-      timeout: 30000
+      timeout: 50000
     });
 
     console.log('[Scraper] Page loaded, waiting for images...');
     
     // Tunggu singkat saja - gambar pertama biasanya sudah loaded
-    await delay(100);
+    await delay(5000);
 
     console.log('[Scraper] Extracting images (first few only)...');
     const imageUrls = await page.evaluate(() => {
