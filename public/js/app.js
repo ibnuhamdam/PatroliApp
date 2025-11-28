@@ -1,64 +1,8 @@
-// State Management
-let currentUnreviewedPage = 1;
-let currentReviewedPage = 1;
-const itemsPerPage = 10;
-let totalUnreviewedPages = 1;
-let totalReviewedPages = 1;
-let currentMode = 'excel'; // 'excel' or 'sheets'
-let searchQuery = '';
-
-// API Base URL - works on both localhost and production
+// Load Products
 const API_URL = `${window.location.origin}/api`;
 
-// Initialize
-document.addEventListener('DOMContentLoaded', () => {
-  setupEventListeners();
-  
-  // Add enter key listener for search
-  const searchInput = document.getElementById('searchInput');
-  if (searchInput) {
-    searchInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        searchProducts();
-      }
-    });
-  }
-});
-
-// ... (setupEventListeners remains same) ...
-
-// Search Products
-function searchProducts() {
-  const searchInput = document.getElementById('searchInput');
-  searchQuery = searchInput.value.trim();
-  
-  // Reset pages to 1 when searching
-  currentUnreviewedPage = 1;
-  currentReviewedPage = 1;
-  
-  loadProducts();
-}
-
-// Change Unreviewed Page
-function changeUnreviewedPage(delta) {
-  const newPage = currentUnreviewedPage + delta;
-  if (newPage >= 1 && newPage <= totalUnreviewedPages) {
-    currentUnreviewedPage = newPage;
-    loadProducts();
-  }
-}
-
-// Change Reviewed Page
-function changeReviewedPage(delta) {
-  const newPage = currentReviewedPage + delta;
-  if (newPage >= 1 && newPage <= totalReviewedPages) {
-    currentReviewedPage = newPage;
-    loadProducts();
-  }
-}
-
-// Load Products
 async function loadProducts() {
+
   const reviewerName = selectedReviewer || '';
 
   try {
@@ -68,7 +12,8 @@ async function loadProducts() {
       pageReviewed: currentReviewedPage,
       limitReviewed: itemsPerPage,
       reviewer: reviewerName,
-      search: searchQuery
+      search: searchQuery,
+      category: selectedCategory
     });
 
     const response = await fetch(`${API_URL}/products?${params.toString()}`);
@@ -105,92 +50,9 @@ function updatePaginationUI(pagination) {
   document.getElementById('nextBtnReviewed').disabled = pagination.reviewed.currentPage === pagination.reviewed.totalPages;
 }
 
-// Setup Event Listeners
-function setupEventListeners() {
-  const fileInput = document.getElementById('fileInput');
-  const uploadArea = document.getElementById('uploadArea');
+// Setup Event Listeners (removed Excel upload handlers)
 
-  // File input change
-  fileInput.addEventListener('change', handleFileSelect);
 
-  // Drag and drop
-  uploadArea.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    uploadArea.classList.add('dragover');
-  });
-
-  uploadArea.addEventListener('dragleave', () => {
-    uploadArea.classList.remove('dragover');
-  });
-
-  uploadArea.addEventListener('drop', (e) => {
-    e.preventDefault();
-    uploadArea.classList.remove('dragover');
-    
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      fileInput.files = files;
-      handleFileSelect({ target: { files } });
-    }
-  });
-}
-
-// Handle File Selection
-async function handleFileSelect(event) {
-  const file = event.target.files[0];
-  
-  if (!file) return;
-
-  // Validate file type
-  const validTypes = [
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-excel'
-  ];
-  
-  if (!validTypes.includes(file.type) && !file.name.match(/\.(xlsx|xls)$/)) {
-    showNotification('Hanya file Excel (.xlsx atau .xls) yang diperbolehkan!', 'error');
-    return;
-  }
-
-  // Show loading
-  const uploadStatus = document.getElementById('uploadStatus');
-  uploadStatus.className = 'mt-2 text-center';
-  uploadStatus.innerHTML = '<div class="loading"></div> <span style="margin-left: 10px;">Mengupload dan memproses file...</span>';
-
-  // Upload file
-  const formData = new FormData();
-  formData.append('file', file);
-
-  try {
-    const response = await fetch(`${API_URL}/upload`, {
-      method: 'POST',
-      body: formData
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Gagal mengupload file');
-    }
-
-    // Success
-    uploadStatus.innerHTML = `✅ ${data.message}`;
-    showNotification(`Berhasil memuat ${data.totalProducts} produk!`, 'success');
-
-    // Load products
-    await loadProducts();
-    await loadStats();
-
-    // Show sections
-    document.getElementById('statsSection').classList.remove('hidden');
-    document.getElementById('productsSection').classList.remove('hidden');
-    document.getElementById('emptyState').classList.add('hidden');
-
-  } catch (error) {
-    uploadStatus.innerHTML = `❌ ${error.message}`;
-    showNotification(error.message, 'error');
-  }
-}
 
 
 
@@ -420,20 +282,11 @@ async function resetData() {
       throw new Error(data.error || 'Gagal mereset data');
     }
 
-    // Reset file input
-    document.getElementById('fileInput').value = '';
+    // Reset sheet input
     document.getElementById('sheetIdInput').value = '';
     
-    // Reset UI
-    document.getElementById('uploadArea').classList.remove('hidden');
-    if (currentMode === 'sheets') {
-      document.getElementById('sheetsSection').classList.remove('hidden');
-      document.getElementById('excelSection').classList.add('hidden');
-    } else {
-      document.getElementById('excelSection').classList.remove('hidden');
-      document.getElementById('sheetsSection').classList.add('hidden');
-    }
-    
+    // Reset UI - show sheets section again
+    document.getElementById('sheetsSection').classList.remove('hidden');
     document.getElementById('statsSection').classList.add('hidden');
     document.getElementById('productsSection').classList.add('hidden');
     document.getElementById('uploadStatus').classList.add('hidden');
@@ -449,103 +302,9 @@ async function resetData() {
   }
 }
 
-// Mode Switching
-function switchMode(mode) {
-  currentMode = mode;
-  
-  // Update buttons
-  document.getElementById('btnModeExcel').classList.toggle('active', mode === 'excel');
-  document.getElementById('btnModeSheets').classList.toggle('active', mode === 'sheets');
-  
-  // Update sections
-  if (mode === 'excel') {
-    document.getElementById('excelSection').classList.remove('hidden');
-    document.getElementById('sheetsSection').classList.add('hidden');
-    document.getElementById('btnUpdateSheets').classList.add('hidden');
-    document.getElementById('btnDownload').classList.remove('hidden');
-  } else {
-    document.getElementById('excelSection').classList.add('hidden');
-    document.getElementById('sheetsSection').classList.remove('hidden');
-    // Only show update button if data is loaded
-    if (document.getElementById('productsSection').classList.contains('hidden')) {
-      document.getElementById('btnUpdateSheets').classList.add('hidden');
-    } else {
-      document.getElementById('btnUpdateSheets').classList.remove('hidden');
-      document.getElementById('btnDownload').classList.add('hidden');
-    }
-  }
-}
 
-// Load from Google Sheets
-async function loadFromSheets() {
-  const sheetIdInput = document.getElementById('sheetIdInput');
-  const reviewerSelect = document.getElementById('reviewerSelect');
-  const spreadsheetIdOrUrl = sheetIdInput.value.trim();
-  const reviewerName = reviewerSelect.value.trim();
-  
-  // Validate reviewer selection
-  if (!reviewerName) {
-    showNotification('Silakan pilih nama reviewer terlebih dahulu', 'error');
-    return;
-  }
 
-  if (!spreadsheetIdOrUrl) {
-    showNotification('Silakan masukkan ID atau URL Spreadsheet', 'error');
-    return;
-  }
 
-  // Extract ID if URL is provided
-  let spreadsheetId = spreadsheetIdOrUrl;
-  const match = spreadsheetIdOrUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
-  if (match) {
-    spreadsheetId = match[1];
-  }
-
-  const statusDiv = document.getElementById('uploadStatus');
-  statusDiv.textContent = `Memuat data untuk reviewer: ${reviewerName}...`;
-  statusDiv.className = 'mt-2 text-center text-info';
-  statusDiv.classList.remove('hidden');
-
-  try {
-    const response = await fetch(`${API_URL}/sheets/read`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ spreadsheetId, reviewerName })
-    });
-
-    const data = await response.json();
-
-    // console.log(data);
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Gagal memuat data');
-    }
-
-    // Update UI
-    document.getElementById('uploadArea').classList.add('hidden'); // Hide upload area
-    document.getElementById('sheetsSection').classList.add('hidden'); // Hide sheets input
-    document.getElementById('statsSection').classList.remove('hidden');
-    document.getElementById('productsSection').classList.remove('hidden');
-    
-    // Show Update Button, Hide Download
-    document.getElementById('btnUpdateSheets').classList.remove('hidden');
-    document.getElementById('btnDownload').classList.add('hidden');
-
-    statusDiv.textContent = data.message;
-    statusDiv.className = 'mt-2 text-center text-success';
-
-    // Load products and stats
-    await loadProducts();
-    await loadStats();
-
-  } catch (error) {
-    console.error('Error:', error);
-    statusDiv.textContent = error.message;
-    statusDiv.className = 'mt-2 text-center text-danger';
-  }
-}
 
 // Update Google Sheets
 async function updateSheets() {
@@ -888,7 +647,7 @@ async function loadFromSheets() {
     }
 
     // Update UI
-    document.getElementById('uploadArea').classList.add('hidden'); // Hide upload area
+    // document.getElementById('uploadArea').classList.add('hidden'); // Removed
     document.getElementById('sheetsSection').classList.add('hidden'); // Hide sheets input
     document.getElementById('statsSection').classList.remove('hidden');
     document.getElementById('productsSection').classList.remove('hidden');
@@ -903,6 +662,7 @@ async function loadFromSheets() {
     // Load products and stats
     await loadProducts();
     await loadStats();
+    await loadCategories(); // Load categories for filter
 
   } catch (error) {
     console.error('Error:', error);

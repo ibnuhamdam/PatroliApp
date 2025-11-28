@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const sheetsService = require('./services/sheetsService');
+const scrapperImageService = require('./services/ScrapperImage');
 const axios = require('axios');
 const cheerio = require('cheerio');
 const puppeteer = require('puppeteer');
@@ -153,6 +154,7 @@ app.get('/api/products', (req, res) => {
   const limitReviewed = parseInt(req.query.limitReviewed) || 10;
   
   const reviewer = req.query.reviewer;
+  const category = req.query.category; // New: Category filter
   const searchQuery = req.query.search ? req.query.search.toLowerCase() : '';
 
   // 1. Filter by Reviewer
@@ -161,28 +163,31 @@ app.get('/api/products', (req, res) => {
     filteredProducts = productsData.filter(p => p.reviewer === reviewer);
   }
 
-  // 2. Filter by Search Query (Product Name)
+  // 2. Filter by Category (New)
+  if (category) {
+    filteredProducts = filteredProducts.filter(p => p.kategoriLv3 === category);
+  }
+
+  // 3. Filter by Search Query (Product Name)
   if (searchQuery) {
     filteredProducts = filteredProducts.filter(p => 
       p.namaProduk.toLowerCase().includes(searchQuery)
     );
   }
 
-  // 3. Split into Reviewed and Unreviewed
+  // 4. Split into Reviewed and Unreviewed
   const unreviewed = filteredProducts.filter(p => !p.reviewed);
   const reviewed = filteredProducts.filter(p => p.reviewed);
 
-  // 4. Pagination for UNREVIEWED
+  // 5. Pagination for UNREVIEWED
   const totalUnreviewed = unreviewed.length;
   const startUnreviewed = (pageUnreviewed - 1) * limitUnreviewed;
   const endUnreviewed = pageUnreviewed * limitUnreviewed;
   const paginatedUnreviewed = unreviewed.slice(startUnreviewed, endUnreviewed);
   const totalPagesUnreviewed = Math.ceil(totalUnreviewed / limitUnreviewed);
 
-  // 5. Pagination for REVIEWED
+  // 6. Pagination for REVIEWED
   // Sort reviewed by most recently updated (simulated by reverse array order)
-  // Note: If we want consistent pagination, we should sort by ID or something stable if we had timestamps.
-  // For now, reverse is fine assuming append-only log.
   const reviewedSorted = [...reviewed].reverse(); 
   
   const totalReviewed = reviewedSorted.length;
@@ -192,11 +197,10 @@ app.get('/api/products', (req, res) => {
   const totalPagesReviewed = Math.ceil(totalReviewed / limitReviewed);
 
   // Stats (based on filtered data or global data? Usually global for the reviewer is better context)
-  // Let's keep stats based on the REVIEWER context, ignoring search for the general stats, 
-  // OR we can make stats reflect the search. Let's stick to Reviewer context stats (ignoring search) 
+  // Let's keep stats based on the REVIEWER context, ignoring search/category for the general stats, 
   // so the user sees their overall progress.
   
-  // Re-calculate stats based on Reviewer ONLY (ignoring search query for the stats cards)
+  // Re-calculate stats based on Reviewer ONLY (ignoring search/category query for the stats cards)
   const reviewerProducts = productsData.filter(p => p.reviewer === reviewer);
   const reviewerReviewed = reviewerProducts.filter(p => p.reviewed);
 
@@ -232,6 +236,21 @@ app.get('/api/products', (req, res) => {
       }
     }
   });
+});
+
+// Endpoint: Get list kategori Lv 3
+app.get('/api/categories', (req, res) => {
+  const reviewer = req.query.reviewer;
+  
+  let filteredProducts = productsData;
+  if (reviewer) {
+    filteredProducts = productsData.filter(p => p.reviewer === reviewer);
+  }
+
+  // Ambil unique kategori Lv 3
+  const categories = [...new Set(filteredProducts.map(p => p.kategoriLv3))].sort();
+  
+  res.json(categories);
 });
 
 // Endpoint: Get produk by ID
@@ -490,7 +509,7 @@ app.post('/api/sheets/update', async (req, res) => {
   }
 });
 
-// Endpoint: Scrape Image (Puppeteer with Cheerio Fallback)
+// Endpoint: Scrape Image (Using ScrapperImage Service)
 app.post('/api/scrape-image', async (req, res) => {
   const { productId, url } = req.body;
   
@@ -500,230 +519,49 @@ app.post('/api/scrape-image', async (req, res) => {
 
   console.log(`[Scraper] Processing product ${productId}: ${url}`);
 
-  // Helper function to extract image from HTML string using Cheerio
-  const extractImageWithCheerio = (html) => {
-    const $ = cheerio.load(html);
-    
-    // Helper to check if image is likely a logo or icon
-    const isLikelyUseless = (src, alt, className) => {
-      const s = (src || '').toLowerCase();
-      const a = (alt || '').toLowerCase();
-      const c = (className || '').toLowerCase();
-      
-      return s.includes('logo') || 
-             s.includes('icon') || 
-             s.includes('assets') || // Common for static assets
-             a.includes('logo') || 
-             c.includes('logo') ||
-             c.includes('icon');
-    };
-
-    // Priority 1: OG Image
-    const ogImage = $('meta[property="og:image"]').attr('content');
-    if (ogImage) return ogImage;
-    
-    // Priority 2: Twitter Image
-    const twitterImage = $('meta[name="twitter:image"]').attr('content');
-    if (twitterImage) return twitterImage;
-    
-    // Priority 3: JSON-LD (Schema.org)
-    let schemaImage = null;
-    $('script[type="application/ld+json"]').each((i, elem) => {
-      try {
-        const data = JSON.parse($(elem).html());
-        if (data.image) {
-          if (Array.isArray(data.image)) schemaImage = data.image[0];
-          else if (typeof data.image === 'string') schemaImage = data.image;
-          else if (data.image.url) schemaImage = data.image.url;
-        }
-      } catch (e) {}
-    });
-    if (schemaImage) return schemaImage;
-
-    // Priority 4: Common Product Selectors
-    const selectors = [
-      '.product-image img',
-      '.product-detail img',
-      '.gallery-image img',
-      '.main-image img',
-      'img[itemprop="image"]',
-      '.sticky-section-image img',
-      '#product-image',
-      '.img-product'
-    ];
-
-    for (const selector of selectors) {
-      const img = $(selector).first();
-      if (img.length) {
-        const src = img.attr('src') || img.attr('data-src') || img.attr('data-original');
-        if (src && !isLikelyUseless(src, img.attr('alt'), img.attr('class'))) {
-          return src;
-        }
-      }
-    }
-    
-    // Priority 5: Largest Image Heuristic
-    let largestImg = null;
-    // This is hard with Cheerio as we don't have dimensions. 
-    // We'll just look for the first substantial image in the body that isn't a logo.
-    let foundImg = null;
-    $('img').each((i, elem) => {
-      if (foundImg) return; // Stop after finding one
-      const src = $(elem).attr('src');
-      if (src && !isLikelyUseless(src, $(elem).attr('alt'), $(elem).attr('class'))) {
-        foundImg = src;
-      }
-    });
-
-    return foundImg;
-  };
-
-  // Strategy 1: Try Cheerio/Axios first (Faster, less resource intensive)
   try {
-    console.log(`[Scraper] Attempting Strategy 1: Axios + Cheerio for ${url}`);
-    const response = await axios.get(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9,id;q=0.8',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-User': '?1',
-        'Cache-Control': 'max-age=0',
-        'Referer': 'https://www.google.com/'
-      },
-      timeout: 10000 // 10s timeout for Axios
-    });
-
-    const imageUrl = extractImageWithCheerio(response.data);
-    if (imageUrl) {
-      console.log(`[Scraper] Found image via Cheerio: ${imageUrl}`);
-      
-      // Update in-memory data
-      const product = productsData.find(p => p.id === parseInt(productId));
-      if (product) product.urlImage = imageUrl;
-
-      return res.json({ success: true, urlImage: imageUrl, source: 'cheerio' });
+    // Gunakan service ScrapperImage untuk mendapatkan semua URL gambar
+    const imageUrls = await scrapperImageService.scrapeProductImages(url);
+    
+    if (!imageUrls || imageUrls.length === 0) {
+      return res.status(404).json({ 
+        error: 'Tidak ada gambar ditemukan di halaman produk',
+        totalImages: 0
+      });
     }
-    console.log(`[Scraper] Cheerio found no image. Falling back to Puppeteer...`);
+
+    console.log(`[Scraper] Found ${imageUrls.length} images`);
+    
+    // Ambil gambar ke-2 (index 1) atau gambar terakhir jika kurang dari 2
+    // Index 1 biasanya adalah gambar produk utama
+    const targetIndex = 1; // Index ke-2 (0-based)
+    const selectedImageUrl = imageUrls.length > targetIndex 
+      ? imageUrls[targetIndex] 
+      : imageUrls[imageUrls.length - 1]; // Fallback ke gambar terakhir
+    
+    console.log(`[Scraper] Selected image at index ${Math.min(targetIndex, imageUrls.length - 1)}: ${selectedImageUrl}`);
+    
+    // Update in-memory data
+    const product = productsData.find(p => p.id === parseInt(productId));
+    if (product) {
+      product.urlImage = selectedImageUrl;
+    }
+
+    return res.json({ 
+      success: true, 
+      urlImage: selectedImageUrl,
+      totalImages: imageUrls.length,
+      selectedIndex: Math.min(targetIndex, imageUrls.length - 1),
+      allImages: imageUrls, // Kirim semua gambar untuk debugging
+      source: 'scrapperImageService'
+    });
 
   } catch (error) {
-    console.warn(`[Scraper] Axios/Cheerio failed: ${error.message}. Falling back to Puppeteer...`);
-  }
-
-  // Strategy 2: Puppeteer (Fallback for dynamic sites)
-  try {
-    console.log(`[Scraper] Attempting Strategy 2: Puppeteer for ${url}`);
-    
-    const browser = await puppeteer.launch({
-      headless: true, // Use new headless mode if available, or true
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined, // Use system chromium if env var is set
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process',
-        '--disable-extensions',
-        '--disable-blink-features=AutomationControlled' // Stealth mode
-      ],
-      timeout: 30000
+    console.error(`[Scraper] Error scraping ${url}: ${error.message}`);
+    res.status(500).json({ 
+      error: 'Gagal mengambil gambar: ' + error.message,
+      details: error.stack
     });
-    
-    const page = await browser.newPage();
-    
-    // Optimize: Block resources
-    await page.setRequestInterception(true);
-    page.on('request', (req) => {
-      if (['font', 'stylesheet', 'media'].includes(req.resourceType())) {
-        req.abort();
-      } else {
-        req.continue();
-      }
-    });
-
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    await page.setExtraHTTPHeaders({
-      'Accept-Language': 'en-US,en;q=0.9,id;q=0.8'
-    });
-    
-    // Navigate
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-
-    // Extract
-    const imageUrl = await page.evaluate(() => {
-      const isLikelyUseless = (img) => {
-        const src = img.src.toLowerCase();
-        const alt = (img.alt || '').toLowerCase();
-        const className = (img.className || '').toLowerCase();
-        
-        return src.includes('logo') || 
-               src.includes('icon') || 
-               alt.includes('logo') || 
-               className.includes('logo') ||
-               className.includes('icon') ||
-               img.width < 50 || 
-               img.height < 50;
-      };
-
-      // Priority 1: OG/Twitter
-      const og = document.querySelector('meta[property="og:image"]');
-      if (og && og.content) return og.content;
-      
-      const tw = document.querySelector('meta[name="twitter:image"]');
-      if (tw && tw.content) return tw.content;
-
-      // Priority 2: Selectors
-      const selectors = [
-        '.product-image img', '.product-detail img', '.gallery-image img', 
-        '.main-image img', 'img[itemprop="image"]', '.sticky-section-image img'
-      ];
-      
-      for (const sel of selectors) {
-        const img = document.querySelector(sel);
-        if (img && img.src && !isLikelyUseless(img)) return img.src;
-      }
-
-      // Priority 3: Largest Image
-      const allImages = Array.from(document.querySelectorAll('img'));
-      let largestImg = null;
-      let maxArea = 0;
-
-      for (const img of allImages) {
-        if (isLikelyUseless(img)) continue;
-        const area = img.width * img.height;
-        if (area > maxArea) {
-          maxArea = area;
-          largestImg = img;
-        }
-      }
-
-      return largestImg ? largestImg.src : null;
-    });
-
-    await browser.close();
-
-    if (imageUrl) {
-      console.log(`[Scraper] Found image via Puppeteer: ${imageUrl}`);
-      
-      // Update in-memory data
-      const product = productsData.find(p => p.id === parseInt(productId));
-      if (product) product.urlImage = imageUrl;
-      
-      return res.json({ success: true, urlImage: imageUrl, source: 'puppeteer' });
-    } else {
-      throw new Error('Gambar tidak ditemukan oleh Puppeteer');
-    }
-
-  } catch (error) {
-    console.error(`[Scraper] 💥 All strategies failed for ${url}: ${error.message}`);
-    res.status(500).json({ error: 'Gagal mengambil gambar: ' + error.message });
   }
 });
 
