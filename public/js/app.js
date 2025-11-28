@@ -1,8 +1,6 @@
 // Load Products
 const API_URL = `${window.location.origin}/api`;
 
-async function loadProducts() {
-
   let currentUnreviewedPage = 1;
   let currentReviewedPage = 1;
   const itemsPerPage = 10;
@@ -12,6 +10,8 @@ async function loadProducts() {
   let searchQuery = '';
   const reviewerName = selectedReviewer || '';
   const selectedCategory = document.getElementById('categoryFilter').value;
+
+async function loadProducts() {
   
 
   try {
