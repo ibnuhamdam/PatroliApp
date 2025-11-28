@@ -39,23 +39,18 @@
         <div class="upload-area">
           <div class="upload-icon">📊</div>
           <h3>Google Sheets Integration</h3>
-          <p>Pilih nama reviewer dan masukkan URL atau ID Spreadsheet</p>
+          <p>Pilih karakter Anda dan masukkan URL atau ID Spreadsheet</p>
           
-          <!-- Reviewer Selection -->
+          <!-- Character Selection Button -->
           <div style="margin-bottom: 1rem;">
-            <label for="reviewerSelect" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Pilih Reviewer:</label>
-            <select id="reviewerSelect" class="form-input" style="width: 100%; max-width: 500px; padding: 0.8rem; font-size: 1rem;">
-              <option value="">-- Pilih Reviewer --</option>
-              <option value="Budi">Budi</option>
-              <option value="Ema">Ema</option>
-              <option value="Alo">Alo</option>
-              <option value="Yona">Yona</option>
-              <option value="Gunawan">Gunawan</option>
-              <option value="Ibnu">Ibnu</option>
-              <option value="Amin">Amin</option>
-              <option value="Amri">Amri</option>
-              <option value="Mario">Mario</option>
-            </select>
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Pilih Reviewer:</label>
+            <button id="characterSelectBtn" class="character-select-btn" onclick="openCharacterModal()">
+              <div class="selected-character-display">
+                <div class="character-avatar-small">👤</div>
+                <span id="selectedCharacterName">Pilih Karakter</span>
+              </div>
+              <span class="arrow">▼</span>
+            </button>
           </div>
 
           <input type="text" id="sheetIdInput" class="form-input" placeholder="https://docs.google.com/spreadsheets/d/..." style="width: 100%; max-width: 500px; margin-bottom: 1rem; padding: 0.8rem;">
@@ -161,6 +156,73 @@
       <div class="empty-state-icon">📦</div>
       <h3>Belum Ada Data</h3>
       <p>Upload file Excel untuk memulai verifikasi produk</p>
+    </div>
+  </div>
+
+  <!-- Character Selection Modal -->
+  <div id="characterModal" class="character-modal">
+    <div class="character-modal-content">
+      <div class="character-modal-header">
+        <h2>🎮 Choose Your Character</h2>
+        <button class="character-modal-close" onclick="closeCharacterModal()">✕</button>
+      </div>
+      <div class="character-grid">
+        <!-- Character Cards -->
+        <div class="character-card" onclick="selectCharacter('Budi', 'cowo')">
+          <div class="character-avatar">
+            <img src="/assets/character/cowo/character_cowo_professional.png" alt="Budi">
+          </div>
+          <div class="character-name">Budi</div>
+        </div>
+        <div class="character-card" onclick="selectCharacter('Ema', 'cewe')">
+          <div class="character-avatar">
+            <img src="/assets/character/cewe/character_cewe_fashion.png" alt="Ema">
+          </div>
+          <div class="character-name">Ema</div>
+        </div>
+        <div class="character-card" onclick="selectCharacter('Ibnu', 'cowo')">
+          <div class="character-avatar">
+            <img src="/assets/character/cowo/Character_cowo_pintar.png" alt="Ibnu">
+          </div>
+          <div class="character-name">Ibnu</div>
+        </div>
+        <div class="character-card" onclick="selectCharacter('Yona', 'cewe')">
+          <div class="character-avatar">
+            <img src="/assets/character/cewe/character_cewe_kopi.png" alt="Yona">
+          </div>
+          <div class="character-name">Yona</div>
+        </div>
+        <div class="character-card" onclick="selectCharacter('Alo', 'cewe')">
+          <div class="character-avatar">
+            <img src="/assets/character/cewe/character_cewe_fashion.png" alt="Alo">
+          </div>
+          <div class="character-name">Alo</div>
+        </div>
+        <div class="character-card" onclick="selectCharacter('Amin', 'cowo')">
+          <div class="character-avatar">
+            <img src="/assets/character/cowo/character_cowo_street.png" alt="Amin">
+          </div>
+          <div class="character-name">Amin</div>
+        </div>
+        <div class="character-card" onclick="selectCharacter('Mario', 'cowo')">
+          <div class="character-avatar">
+            <img src="/assets/character/cowo/character_cowo_explore.png" alt="Mario">
+          </div>
+          <div class="character-name">Mario</div>
+        </div>
+        <div class="character-card" onclick="selectCharacter('Gunawan', 'cowo')">
+          <div class="character-avatar">
+            <img src="/assets/character/cowo/character_cowo_professional.png" alt="Gunawan">
+          </div>
+          <div class="character-name">Gunawan</div>
+        </div>
+        <div class="character-card" onclick="selectCharacter('Amri', 'cowo')">
+          <div class="character-avatar">
+            <img src="/assets/character/cowo/Character_cowo_pintar.png" alt="Amri">
+          </div>
+          <div class="character-name">Amri</div>
+        </div>
+      </div>
     </div>
   </div>
 

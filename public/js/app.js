@@ -59,8 +59,7 @@ function changeReviewedPage(delta) {
 
 // Load Products
 async function loadProducts() {
-  const reviewerSelect = document.getElementById('reviewerSelect');
-  const reviewerName = reviewerSelect ? reviewerSelect.value.trim() : '';
+  const reviewerName = selectedReviewer || '';
 
   try {
     const params = new URLSearchParams({
@@ -349,8 +348,7 @@ async function reviewProduct(productId, hasil_review) {
 
 // Load Statistics
 async function loadStats() {
-  const reviewerSelect = document.getElementById('reviewerSelect');
-  const reviewerName = reviewerSelect.value.trim();
+  const reviewerName = selectedReviewer || '';
 
   try {
     const response = await fetch(`${API_URL}/stats?reviewer=${reviewerName}`);
@@ -788,3 +786,139 @@ async function autoFetchImage(productId, url) {
     }
   }
 }
+
+// Character Selection Functions
+let selectedReviewer = '';
+
+// Character image pools
+const characterImages = {
+  cowo: [
+    '/assets/character/cowo/character_cowo_professional.png',
+    '/assets/character/cowo/Character_cowo_pintar.png',
+    '/assets/character/cowo/character_cowo_explore.png',
+    '/assets/character/cowo/character_cowo_street.png'
+  ],
+  cewe: [
+    '/assets/character/cewe/character_cewe_fashion.png',
+    '/assets/character/cewe/character_cewe_kopi.png'
+  ]
+};
+
+// Get random image based on gender
+function getRandomCharacterImage(gender) {
+  const images = characterImages[gender];
+  return images[Math.floor(Math.random() * images.length)];
+}
+
+function openCharacterModal() {
+  const modal = document.getElementById('characterModal');
+  modal.classList.add('active');
+}
+
+function closeCharacterModal() {
+  const modal = document.getElementById('characterModal');
+  modal.classList.remove('active');
+}
+
+function selectCharacter(name, gender) {
+  selectedReviewer = name;
+  
+  // Get random image for this gender
+  const randomImage = getRandomCharacterImage(gender);
+  
+  // Update button display
+  const avatarSmall = document.querySelector('.character-avatar-small');
+  const nameDisplay = document.getElementById('selectedCharacterName');
+  
+  // Update with image instead of emoji
+  avatarSmall.innerHTML = `<img src="${randomImage}" alt="${name}">`;
+  nameDisplay.textContent = name;
+  
+  // Close modal
+  closeCharacterModal();
+  
+  // Show notification
+  showNotification(`Karakter ${name} dipilih!`, 'success');
+}
+
+// Update loadFromSheets to use selectedReviewer
+async function loadFromSheets() {
+  const sheetIdInput = document.getElementById('sheetIdInput');
+  const spreadsheetIdOrUrl = sheetIdInput.value.trim();
+  const reviewerName = selectedReviewer; // Use selected character instead of dropdown
+  
+  // Validate reviewer selection
+  if (!reviewerName) {
+    showNotification('Silakan pilih karakter terlebih dahulu', 'error');
+    return;
+  }
+
+  if (!spreadsheetIdOrUrl) {
+    showNotification('Silakan masukkan ID atau URL Spreadsheet', 'error');
+    return;
+  }
+
+  // Extract ID if URL is provided
+  let spreadsheetId = spreadsheetIdOrUrl;
+  const match = spreadsheetIdOrUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  if (match) {
+    spreadsheetId = match[1];
+  }
+
+  const statusDiv = document.getElementById('uploadStatus');
+  statusDiv.textContent = `Memuat data untuk reviewer: ${reviewerName}...`;
+  statusDiv.className = 'mt-2 text-center text-info';
+  statusDiv.classList.remove('hidden');
+
+  try {
+    const response = await fetch(`${API_URL}/sheets/read`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ spreadsheetId, reviewerName })
+    });
+
+    const data = await response.json();
+
+    // console.log(data);
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Gagal memuat data');
+    }
+
+    // Update UI
+    document.getElementById('uploadArea').classList.add('hidden'); // Hide upload area
+    document.getElementById('sheetsSection').classList.add('hidden'); // Hide sheets input
+    document.getElementById('statsSection').classList.remove('hidden');
+    document.getElementById('productsSection').classList.remove('hidden');
+    
+    // Show Update Button, Hide Download
+    document.getElementById('btnUpdateSheets').classList.remove('hidden');
+    document.getElementById('btnDownload').classList.add('hidden');
+
+    statusDiv.textContent = data.message;
+    statusDiv.className = 'mt-2 text-center text-success';
+
+    // Load products and stats
+    await loadProducts();
+    await loadStats();
+
+  } catch (error) {
+    console.error('Error:', error);
+    statusDiv.textContent = error.message;
+    statusDiv.className = 'mt-2 text-center text-danger';
+  }
+}
+
+// Close modal when clicking outside
+document.addEventListener('DOMContentLoaded', () => {
+  const modal = document.getElementById('characterModal');
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        closeCharacterModal();
+      }
+    });
+  }
+});
