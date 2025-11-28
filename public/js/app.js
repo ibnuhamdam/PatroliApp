@@ -1,17 +1,21 @@
 // Load Products
 const API_URL = `${window.location.origin}/api`;
 
-  let currentUnreviewedPage = 1;
-  let currentReviewedPage = 1;
-  const itemsPerPage = 10;
-  let totalUnreviewedPages = 1;
-  let totalReviewedPages = 1;
-  let currentMode = 'excel'; // 'excel' or 'sheets'
-  let searchQuery = '';
-  const reviewerName = selectedReviewer || '';
-  const selectedCategory = document.getElementById('categoryFilter').value;
+// Global State
+let selectedReviewer = '';
+let currentUnreviewedPage = 1;
+let currentReviewedPage = 1;
+const itemsPerPage = 10;
+let totalUnreviewedPages = 1;
+let totalReviewedPages = 1;
+let currentMode = 'excel'; // 'excel' or 'sheets'
+let searchQuery = '';
 
 async function loadProducts() {
+  const reviewerName = selectedReviewer || '';
+  const selectedCategory = document.getElementById('categoryFilter') ? document.getElementById('categoryFilter').value : '';
+
+
   
 
   try {
@@ -538,7 +542,7 @@ function closeAIModal() {
 
 
 // Character Selection Functions
-let selectedReviewer = '';
+
 
 // Character image pools
 const characterImages = {
