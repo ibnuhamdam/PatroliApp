@@ -33,22 +33,23 @@
   <div class="container">
     <!-- Header -->
     <header class="header">
-      <h1>🔍 Patroli Produk</h1>
-      <p>Sistem Verifikasi Kesesuaian Kategori Produk</p>
+      <h1>Patroli App</h1>
+      <p>Sistem Patroli Kesesuaian Kategori Produk</p>
     </header>
 
     <!-- Upload Section -->
     <section class="upload-section">
-      <!-- Google Sheets Section (Only Method) -->
+      <!-- Google Sheets Section (Only Method)-->
       <div id="sheetsSection">
         <div class="upload-area">
-          <div class="upload-icon">📊</div>
-          <h3>Google Sheets Integration</h3>
+          <div class="upload-icon">
+            <img src="/assets/main/sally.png" alt="Sally" style="width: 250px; height: 250px; object-fit: contain;">
+          </div>
+          <h3>Patroli Produk Katalog Elektronik V6</h3>
           <p>Pilih karakter Anda dan masukkan URL atau ID Spreadsheet</p>
           
           <!-- Character Selection Button -->
           <div style="margin-bottom: 1rem;">
-            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Pilih Reviewer:</label>
             <button id="characterSelectBtn" class="character-select-btn" onclick="openCharacterModal()">
               <div class="selected-character-display">
                 <div class="character-avatar-small">👤</div>
@@ -58,7 +59,7 @@
             </button>
           </div>
 
-          <input type="text" id="sheetIdInput" class="form-input" placeholder="https://docs.google.com/spreadsheets/d/..." style="width: 100%; max-width: 500px; margin-bottom: 1rem; padding: 0.8rem;">
+          <input type="text" id="sheetIdInput" class="form-input" placeholder="https://docs.google.com/spreadsheets/d/..." value="https://docs.google.com/spreadsheets/d/1Ie4Qf4xTchnfwMTt6tKD9AAtjxmDuu1dvjVJcK_q5h8/edit?usp=sharing" style="width: 100%; max-width: 500px; margin-bottom: 1rem; padding: 0.8rem;">
           <button class="btn btn-primary" onclick="loadFromSheets()">
             Load Data from Sheets
           </button>

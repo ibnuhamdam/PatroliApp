@@ -140,12 +140,10 @@ body::before {
 
 .upload-area:hover {
   border-color: #667eea;
-  background: rgba(102, 126, 234, 0.05);
 }
 
 .upload-area.dragover {
   border-color: #667eea;
-  background: rgba(102, 126, 234, 0.1);
   transform: scale(1.02);
 }
 
@@ -615,6 +613,10 @@ body::before {
     right: 1rem;
     left: 1rem;
     max-width: none;
+  }
+
+  .btn-secondary {
+    margin-top: 20px;
   }
 }
 
