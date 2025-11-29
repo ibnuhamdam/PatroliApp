@@ -742,3 +742,85 @@ function changeReviewedPage(delta) {
 }
 
 
+
+// Scrape Images Batch (with SSE Progress)
+function scrapeImages() {
+  const statusDiv = document.getElementById('scrapeStatus');
+  const statusText = document.getElementById('scrapeStatusText');
+  const progressBar = document.getElementById('scrapeProgress');
+  const sheetIdInput = document.getElementById('sheetIdInput');
+  
+  // Get current spreadsheet ID
+  let spreadsheetId = sheetIdInput.value.trim();
+  const match = spreadsheetId.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  if (match) {
+    spreadsheetId = match[1];
+  }
+
+  statusDiv.classList.remove('hidden');
+  statusText.textContent = 'Starting batch scrape...';
+  
+  // Reset styles
+  statusText.style.color = '#ffb74d'; 
+  statusDiv.style.backgroundColor = 'rgba(255, 152, 0, 0.1)';
+  statusDiv.style.borderColor = 'rgba(255, 152, 0, 0.3)';
+  
+  progressBar.style.width = '0%';
+
+  // Close existing event source if any
+  if (window.scrapeEventSource) {
+    window.scrapeEventSource.close();
+  }
+
+  const url = `/api/scrape-batch-stream?spreadsheetId=${encodeURIComponent(spreadsheetId)}`;
+  const eventSource = new EventSource(url);
+  window.scrapeEventSource = eventSource;
+
+  eventSource.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+
+    if (data.type === 'start') {
+      statusText.textContent = data.message;
+      progressBar.style.width = '5%';
+    } else if (data.type === 'progress') {
+      const percent = Math.round((data.processed / data.total) * 100);
+      progressBar.style.width = `${percent}%`;
+      statusText.textContent = `${data.message} (${percent}%)`;
+      
+      // Update UI if successful
+      if (data.result && data.result.success) {
+        // Find product card and update image (if loaded in UI)
+        // Note: Row index in sheet is 0-based, but our IDs might be 1-based or different
+        // We need a way to map row index to product ID if possible, or just reload at the end
+        // For now, let's just update progress
+      }
+    } else if (data.type === 'done') {
+      statusText.textContent = 'Batch scraping completed!';
+      statusText.style.color = '#4caf50'; // Green
+      statusDiv.style.backgroundColor = 'rgba(76, 175, 80, 0.1)';
+      statusDiv.style.borderColor = 'rgba(76, 175, 80, 0.3)';
+      progressBar.style.width = '100%';
+      progressBar.style.background = 'linear-gradient(90deg, #4caf50, #8bc34a)';
+      
+      eventSource.close();
+      
+      // Refresh grid
+      setTimeout(() => {
+        loadFromSheets(); // Reload data to show new images
+      }, 1000);
+    } else if (data.type === 'error') {
+      statusText.textContent = 'Error: ' + data.message;
+      statusText.style.color = '#ff5252';
+      statusDiv.style.backgroundColor = 'rgba(255, 23, 68, 0.1)';
+      statusDiv.style.borderColor = 'rgba(255, 23, 68, 0.3)';
+      eventSource.close();
+    }
+  };
+
+  eventSource.onerror = function(err) {
+    console.error('EventSource failed:', err);
+    statusText.textContent = 'Connection lost. Check console.';
+    statusText.style.color = '#ff5252';
+    eventSource.close();
+  };
+}

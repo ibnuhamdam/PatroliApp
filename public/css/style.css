@@ -1340,3 +1340,61 @@ footer a:hover {
   opacity: 0.8;
   text-decoration: underline !important;
 }
+/* Filter Section */
+.filter-section {
+  background: var(--bg-card);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+  transition: all var(--transition-normal);
+}
+
+.filter-section:hover {
+  background: var(--bg-card-hover);
+  box-shadow: var(--shadow-md);
+  border-color: rgba(102, 126, 234, 0.3);
+}
+
+.form-input {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  padding: 0.8rem 1rem;
+  font-size: 0.95rem;
+  transition: all var(--transition-normal);
+  font-family: 'Inter', sans-serif;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #667eea;
+  background: rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+.form-input::placeholder {
+  color: var(--text-muted);
+}
+
+select.form-input {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23b8b8d1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 1em;
+  padding-right: 2.5rem;
+}
+
+select.form-input option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: 0.5rem;
+}

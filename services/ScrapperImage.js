@@ -7,7 +7,7 @@ async function scrapeProductImages(url) {
   console.log(`[Scraper] Opening browser for: ${url}`);
 
   const browser = await puppeteer.launch({
-    headless: true, // ubah ke false jika mau lihat prosesnya
+    headless: true,
     args: [
       '--no-sandbox', 
       '--disable-setuid-sandbox',
@@ -15,45 +15,56 @@ async function scrapeProductImages(url) {
     ]
   });
 
-  const page = await browser.newPage();
-  
-  // Set user agent to avoid detection
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-
   try {
+    const page = await browser.newPage();
+    
+    // Set user agent to avoid detection
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
     console.log('[Scraper] Navigating to URL...');
     await page.goto(url, {
-      waitUntil: 'domcontentloaded', // Lebih cepat - cukup untuk gambar pertama
-      timeout: 50000
+      waitUntil: 'networkidle2', // Wait for network idle like in manual script
+      timeout: 60000
     });
 
-    console.log('[Scraper] Page loaded, waiting for images...');
+    console.log('[Scraper] Page loaded, looking for images...');
     
-    // Tunggu singkat saja - gambar pertama biasanya sudah loaded
-    await delay(5000);
+    // 1. Try specific selector from manual script
+    const selector = ".image-gallery-slide.center img";
+    try {
+      // Short timeout for specific selector
+      await page.waitForSelector(selector, { timeout: 5000 });
+      const src = await page.$eval(selector, (img) => img.src);
+      if (src) {
+        console.log('[Scraper] Found image with specific selector');
+        await browser.close();
+        return [src]; // Return as array for consistency
+      }
+    } catch (e) {
+      console.log("[Scraper] Specific selector not found, falling back to all images...");
+    }
 
-    console.log('[Scraper] Extracting images (first few only)...');
+    // 2. Fallback: Extract all images
+    console.log('[Scraper] Extracting all images...');
     const imageUrls = await page.evaluate(() => {
       const imgs = Array.from(document.querySelectorAll('img'));
       
-      // Ambil hanya 3 gambar pertama untuk mempercepat
       return imgs
-        .slice(0, 2)
         .map(img => {
-          // Coba berbagai atribut untuk mendapatkan URL gambar
+          // Try various attributes
           return img.src || img.getAttribute('data-src') || img.getAttribute('data-lazy-src');
         })
-        .filter(src => src && src.includes('http')); // filter hanya yang valid
+        .filter(src => src && src.includes('http') && !src.startsWith("data:")); // Filter valid URLs
     });
 
-    console.log(`[Scraper] Extracted ${imageUrls.length} image URLs (fast mode)`);
+    console.log(`[Scraper] Extracted ${imageUrls.length} image URLs`);
     
     await browser.close();
     return imageUrls;
 
   } catch (error) {
     console.error('[Scraper] Error:', error.message);
-    await browser.close();
+    if (browser) await browser.close();
     return [];
   }
 }

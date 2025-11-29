@@ -372,8 +372,11 @@ app.post('/api/ai/explain-product', async (req, res) => {
       return res.status(400).json({ error: 'Nama produk diperlukan' });
     }
 
-    const prompt = `Jelaskan secara singkat apa itu produk "${productName}" dalam 2-3 kalimat. Fokus pada fungsi dan kegunaan produk tersebut dalam konteks perkantoran atau bisnis. dan apakah produk "${productName}" dapat dikategorikan dalam kategori "${categoryName}"? Gunakan Bahasa Indonesia yang mudah dipahami.`;
-    
+    const rules1 = "Jika produk mencamtumkan kata seperti custom, cetak dan kata lain yang mengarah pada kegiatan jasa, maka dipastikan tidak sesuai"
+    // const rules2 = ""
+
+    const prompt = `Jelaskan secara singkat apa itu produk "${productName}" dalam 2-3 kalimat. Fokus pada fungsi dan kegunaan produk. dan apakah produk "${productName}" dapat dikategorikan dalam kategori "${categoryName}"?. Dengan catatan ${rules1}`;
+    console.log(prompt);
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const explanation = response.text();
@@ -570,6 +573,47 @@ app.post('/api/scrape-image', async (req, res) => {
       details: error.stack
     });
   }
+});
+
+// Endpoint: Batch Scrape Images (SSE Streaming)
+app.get('/api/scrape-batch-stream', async (req, res) => {
+  // Set headers for SSE
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const spreadsheetId = req.query.spreadsheetId || currentSpreadsheetId;
+
+  try {
+    console.log('[Batch Scraper] Starting batch scraping stream...');
+    
+    // Dynamic import for ESM module
+    const { runBatch } = await import('./scrape-image-sheet/sheet-scrape.js');
+
+    console.log(`[Batch Scraper] Triggering runBatch for Sheet ID: ${spreadsheetId || 'Default'}`);
+
+    // Run the batch process with progress callback
+    await runBatch(spreadsheetId, (progress) => {
+      // Send progress event
+      res.write(`data: ${JSON.stringify(progress)}\n\n`);
+    });
+
+    // Send final event
+    res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+    res.end();
+
+  } catch (error) {
+    console.error('[Batch Scraper] Error:', error);
+    res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
+    res.end();
+  }
+});
+
+// Keep the POST endpoint for backward compatibility or simple triggering if needed
+// But for progress bar, we will use the GET stream endpoint
+app.post('/api/scrape-batch', async (req, res) => {
+   res.json({ success: true, message: "Use /api/scrape-batch-stream for progress updates" });
 });
 
 app.listen(PORT, () => {
