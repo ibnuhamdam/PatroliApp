@@ -72,7 +72,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
     const data = XLSX.utils.sheet_to_json(worksheet);
 
     // Validasi kolom yang diperlukan
-    const requiredColumns = ['kategori_lv1', 'kategori_lv2', 'kategori_lv3', 'nama_produk','url_produk', 'hasil pemeriksa','reviewer', 'pemeriksa'];
+    const requiredColumns = ['kategori_lv1', 'kategori_lv2', 'kategori_lv3', 'nama_produk','url_produk', 'hasil_pemeriksa','reviewer', 'pemeriksa'];
     if (data.length > 0) {
       const columns = Object.keys(data[0]);
       const missingColumns = requiredColumns.filter(col => !columns.includes(col));
@@ -88,7 +88,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
     const invalidRows = [];
     // console.log(data)
     data.forEach((item, index) => {
-      const hasilPemeriksaan = item['hasil pemeriksa'];
+      const hasilPemeriksaan = item['hasil_pemeriksa'];
       if (hasilPemeriksaan && !['Sesuai', 'Tidak Sesuai'].includes(hasilPemeriksaan)) {
         invalidRows.push(index + 2); // +2 karena row 1 adalah header, index mulai dari 0
       }
@@ -125,7 +125,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
       namaProduk: item['nama_produk'] || '',
       urlImage: item['image_url'] || item['url_image'] || '',
       urlProduk: item['url_produk'] || '',
-      hasilPemeriksaan: item['hasil pemeriksa'] || '', // MANDATORY - read-only
+      hasilPemeriksaan: item['hasil_pemeriksa'] || '', // MANDATORY - read-only
       hasilReview: item['hasil_review'] || null,   // Will be filled via app
       pemeriksa: item['pemeriksa'] || '',          // MANDATORY
       reviewer: item['reviewer'] || '',          // MANDATORY
@@ -420,7 +420,7 @@ app.post('/api/sheets/read', async (req, res) => {
     }
     
     // Validasi kolom yang diperlukan
-    const requiredColumns = ['kategori_lv1', 'kategori_lv2', 'kategori_lv3', 'nama_produk','url_produk', 'hasil pemeriksa','reviewer', 'pemeriksa'];
+    const requiredColumns = ['kategori_lv1', 'kategori_lv2', 'kategori_lv3', 'nama_produk','url_produk', 'hasil_pemeriksa','reviewer', 'pemeriksa'];
     if (data.length > 0) {
       const columns = Object.keys(data[0]);
       const missingColumns = requiredColumns.filter(col => !columns.includes(col));
@@ -435,7 +435,7 @@ app.post('/api/sheets/read', async (req, res) => {
     // Validasi nilai Hasil Pemeriksaan
     const invalidRows = [];
     data.forEach((item, index) => {
-      const hasilPemeriksaan = item['hasil pemeriksa'];
+      const hasilPemeriksaan = item['hasil_pemeriksa'];
       if (hasilPemeriksaan && !['Sesuai', 'Tidak Sesuai'].includes(hasilPemeriksaan)) {
         invalidRows.push(index + 2);
       }
@@ -470,7 +470,7 @@ app.post('/api/sheets/read', async (req, res) => {
       namaProduk: item['nama_produk'] || '',
       urlImage: item['image_url'] || item['url_image'] || '',
       urlProduk: item['url_produk'] || '',
-      hasilPemeriksaan: item['hasil pemeriksa'] || '',
+      hasilPemeriksaan: item['hasil_pemeriksa'] || '',
       hasilReview: item['Review Validator'] || item['hasil_review'] || null, // Check both new and old column names
       pemeriksa: item['pemeriksa'] || '',
       reviewer: item['reviewer'] || '',
