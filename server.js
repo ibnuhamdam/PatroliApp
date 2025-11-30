@@ -10,6 +10,7 @@ const scrapperImageService = require('./services/ScrapperImage');
 const axios = require('axios');
 const cheerio = require('cheerio');
 const puppeteer = require('puppeteer');
+const { google } = require('googleapis');
 const env = require('dotenv').config();
 
 const app = express();
@@ -493,7 +494,7 @@ app.post('/api/sheets/read', async (req, res) => {
   }
 });
 
-// Endpoint: Update Google Sheets
+// Endpoint: Update Google Sheets (Only hasil_review column)
 app.post('/api/sheets/update', async (req, res) => {
   try {
     const { spreadsheetId } = req.body;
@@ -506,11 +507,114 @@ app.post('/api/sheets/update', async (req, res) => {
       return res.status(400).json({ error: 'Tidak ada data untuk diupdate' });
     }
 
-    const result = await sheetsService.updateSpreadsheet(spreadsheetId, productsData);
+    // Filter only products that have been reviewed (hasilReview is not null/empty)
+    const reviewedProducts = productsData.filter(p => p.hasilReview && p.hasilReview.trim() !== '');
+    
+    if (reviewedProducts.length === 0) {
+      return res.status(400).json({ error: 'Tidak ada produk yang sudah direview' });
+    }
+
+    console.log(`[Update Sheets] Updating ${reviewedProducts.length} reviewed products`);
+
+    // Get Google Sheets auth
+    const auth = new google.auth.GoogleAuth({
+      keyFile: './credentials.json',
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    // Read header to find hasil_review column index
+    const headerResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'Sheet1!1:1',
+    });
+
+    const headers = headerResponse.data.values ? headerResponse.data.values[0] : [];
+    let reviewColIndex = headers.indexOf('hasil_review');
+
+    // If column doesn't exist, create it by appending to the next available column
+    if (reviewColIndex === -1) {
+      reviewColIndex = headers.length;
+      const newColLetter = getColumnLetter(reviewColIndex + 1);
+      
+      // Only update the specific cell for the new header
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `Sheet1!${newColLetter}1`,
+        valueInputOption: 'RAW',
+        resource: { values: [['hasil_review']] },
+      });
+      
+      // Update local headers array to reflect change
+      headers.push('hasil_review');
+      console.log(`[Update Sheets] Created hasil_review column at ${newColLetter}1`);
+    }
+
+    // Read all data to match products by url_produk
+    const dataResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'Sheet1!A:Z',
+    });
+
+    const allRows = dataResponse.data.values || [];
+    const urlProdukIndex = headers.indexOf('url_produk');
+
+    if (urlProdukIndex === -1) {
+      return res.status(400).json({ error: 'Kolom url_produk tidak ditemukan di spreadsheet' });
+    }
+
+    // Update each reviewed product
+    const dataToUpdate = [];
+    const colLetter = getColumnLetter(reviewColIndex + 1);
+
+    for (const product of reviewedProducts) {
+      // Find matching row by url_produk (unique enough and available)
+      const targetUrl = String(product.urlProduk).trim();
+      
+      if (!targetUrl) {
+        console.log(`[Update Sheets] Skipping product with empty URL: ${product.namaProduk}`);
+        continue;
+      }
+
+      const rowIndex = allRows.findIndex((row, idx) => {
+        if (idx === 0) return false; // Skip header
+        const sheetUrl = row[urlProdukIndex] ? String(row[urlProdukIndex]).trim() : '';
+        return sheetUrl === targetUrl;
+      });
+
+      if (rowIndex !== -1) {
+        const actualRowNumber = rowIndex + 1; // 1-based
+        const range = `Sheet1!${colLetter}${actualRowNumber}`;
+        
+        // Collect update data instead of sending immediately
+        dataToUpdate.push({
+          range: range,
+          values: [[product.hasilReview]]
+        });
+
+        // console.log(`[Update Sheets] Queued update for row ${actualRowNumber}: URL ${targetUrl} = ${product.hasilReview}`);
+      } else {
+        console.log(`[Update Sheets] WARNING: Product URL ${targetUrl} not found in sheet!`);
+      }
+    }
+
+    if (dataToUpdate.length > 0) {
+      console.log(`[Update Sheets] Sending batch update for ${dataToUpdate.length} cells...`);
+      
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId,
+        resource: {
+          valueInputOption: 'RAW',
+          data: dataToUpdate
+        }
+      });
+      
+      console.log(`[Update Sheets] Batch update success!`);
+    }
     
     res.json({
       success: true,
-      message: `Berhasil mengupdate baris di Google Sheet`
+      message: `Berhasil mengupdate ${dataToUpdate.length} produk di Google Sheet`
     });
 
   } catch (error) {
@@ -518,6 +622,17 @@ app.post('/api/sheets/update', async (req, res) => {
     res.status(500).json({ error: 'Gagal mengupdate Google Sheet: ' + error.message });
   }
 });
+
+// Helper function to convert column index to letter (A, B, C, ..., Z, AA, AB, ...)
+function getColumnLetter(columnNumber) {
+  let letter = '';
+  while (columnNumber > 0) {
+    const remainder = (columnNumber - 1) % 26;
+    letter = String.fromCharCode(65 + remainder) + letter;
+    columnNumber = Math.floor((columnNumber - 1) / 26);
+  }
+  return letter;
+}
 
 // Endpoint: Scrape Image (Using ScrapperImage Service)
 app.post('/api/scrape-image', async (req, res) => {
