@@ -1,4 +1,4 @@
-const puppeteer = require('puppeteer');
+import puppeteer from 'puppeteer';
 
 // Helper delay function
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -90,6 +90,6 @@ async function autoScroll(page) {
 }
 
 // Export function untuk digunakan di server.js
-module.exports = {
+export default {
   scrapeProductImages
 };

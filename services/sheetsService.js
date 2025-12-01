@@ -1,5 +1,11 @@
-const { google } = require('googleapis');
-const path = require('path');
+import { google } from 'googleapis';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// ESM equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Path to the service account key file
 const KEY_FILE_PATH = path.join(__dirname, '../credentials.json');
@@ -137,7 +143,7 @@ function getColumnLetter(columnIndex) {
   return letter;
 }
 
-module.exports = {
+export default {
   readSpreadsheet,
   updateSpreadsheet
 };

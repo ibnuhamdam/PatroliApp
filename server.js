@@ -1,17 +1,19 @@
-const express = require('express');
-const multer = require('multer');
-const XLSX = require('xlsx');
-const cors = require('cors');
-const path = require('path');
-const fs = require('fs');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const sheetsService = require('./services/sheetsService');
-const scrapperImageService = require('./services/ScrapperImage');
-const axios = require('axios');
-const cheerio = require('cheerio');
-const puppeteer = require('puppeteer');
-const { google } = require('googleapis');
-const env = require('dotenv').config();
+import express from 'express';
+import multer from 'multer';
+import XLSX from 'xlsx';
+import cors from 'cors';
+import path from 'path';
+import fs from 'fs';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import sheetsService from './services/sheetsService.js';
+import scrapperImageService from './services/ScrapperImage.js';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
+import puppeteer from 'puppeteer';
+import { google } from 'googleapis';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -124,7 +126,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
       kategoriLv2: item['kategori_lv2'] || '',
       kategoriLv3: item['kategori_lv3'] || '',
       namaProduk: item['nama_produk'] || '',
-      urlImage: item['image_url'] || item['url_image'] || '',
+      urlImage: item['gambar_produk'] || item['image_url'] || item['url_image'] || '',
       urlProduk: item['url_produk'] || '',
       hasilPemeriksaan: item['hasil_pemeriksa'] || '', // MANDATORY - read-only
       hasilReview: item['hasil_review'] || null,   // Will be filled via app
@@ -469,7 +471,7 @@ app.post('/api/sheets/read', async (req, res) => {
       kategoriLv2: item['kategori_lv2'] || '',
       kategoriLv3: item['kategori_lv3'] || '',
       namaProduk: item['nama_produk'] || '',
-      urlImage: item['image_url'] || item['url_image'] || '',
+      urlImage: item['gambar_produk'] || item['image_url'] || item['url_image'] || '',
       urlProduk: item['url_produk'] || '',
       hasilPemeriksaan: item['hasil_pemeriksa'] || '',
       hasilReview: item['Review Validator'] || item['hasil_review'] || null, // Check both new and old column names

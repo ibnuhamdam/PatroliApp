@@ -25,7 +25,7 @@ async function loadProducts() {
       pageReviewed: currentReviewedPage,
       limitReviewed: itemsPerPage,
       reviewer: reviewerName,
-      search: searchQuery,dd
+      search: searchQuery
       // category: selectedCategory
     });
 
