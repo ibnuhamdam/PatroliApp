@@ -12,6 +12,42 @@ async function loadProducts() {
       pageReviewed: currentReviewedPage,
       limitReviewed: itemsPerPage,
       reviewer: reviewerName,
+      search: searchQuery,dd
+      // category: selectedCategory
+    });
+
+    const response = await fetch(`${API_URL}/products?${params.toString()}`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error('Gagal memuat produk');
+    }
+
+    // Update pagination info
+    totalUnreviewedPages = data.pagination.unreviewed.totalPages;
+    totalReviewedPages = data.pagination.reviewed.totalPages;
+    
+    updatePaginationUI(data.pagination);
+
+    // Render products
+    renderProducts(data.unreviewed, data.reviewed);
+
+  } catch (error) {
+    showNotification(error.message, 'error');
+  }
+}
+
+async function loadCategories() {
+
+  const reviewerName = selectedReviewer || '';
+
+  try {
+    const params = new URLSearchParams({
+      pageUnreviewed: currentUnreviewedPage,
+      limitUnreviewed: itemsPerPage,
+      pageReviewed: currentReviewedPage,
+      limitReviewed: itemsPerPage,
+      reviewer: reviewerName,
       search: searchQuery,
       category: selectedCategory
     });
