@@ -25,8 +25,8 @@ async function loadProducts() {
       pageReviewed: currentReviewedPage,
       limitReviewed: itemsPerPage,
       reviewer: reviewerName,
-      search: searchQuery
-      // category: selectedCategory
+      search: searchQuery,
+      category: selectedCategory
     });
 
     const response = await fetch(`${API_URL}/products?${params.toString()}`);
@@ -177,6 +177,10 @@ function createProductCard(product) {
         }
       </div>
       
+      <div class="product-supplier">
+        <span class="supplier-label">🏢 Penyedia:</span>
+        <span class="supplier-name">${escapeHtml(product.namaPenyedia || 'Tidak ada')}</span>
+      </div>
 
 
       <button class="btn-ai" onclick="explainProduct('${escapeHtml(product.namaProduk)}', '${escapeHtml(product.kategoriLv3)}', ${product.id})">

@@ -740,6 +740,30 @@ body::before {
   transform: scale(1.05);
 }
 
+/* Product Supplier */
+.product-supplier {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  margin-bottom: 1rem;
+}
+
+.supplier-label {
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.supplier-name {
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
 .product-categories {
   background: rgba(255, 255, 255, 0.03);
   padding: 0.75rem;

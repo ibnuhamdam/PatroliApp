@@ -126,6 +126,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
       kategoriLv2: item['kategori_lv2'] || '',
       kategoriLv3: item['kategori_lv3'] || '',
       namaProduk: item['nama_produk'] || '',
+      namaPenyedia: item['nama_penyedia'] || '',
       urlImage: item['gambar_produk'] || item['image_url'] || item['url_image'] || '',
       urlProduk: item['url_produk'] || '',
       hasilPemeriksaan: item['hasil_pemeriksa'] || '', // MANDATORY - read-only
@@ -471,6 +472,7 @@ app.post('/api/sheets/read', async (req, res) => {
       kategoriLv2: item['kategori_lv2'] || '',
       kategoriLv3: item['kategori_lv3'] || '',
       namaProduk: item['nama_produk'] || '',
+      namaPenyedia: item['nama_penyedia'] || '',
       urlImage: item['gambar_produk'] || item['image_url'] || item['url_image'] || '',
       urlProduk: item['url_produk'] || '',
       hasilPemeriksaan: item['hasil_pemeriksa'] || '',
