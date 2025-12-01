@@ -5,28 +5,65 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Aplikasi Web untuk Patroli dan Verifikasi Kategori Produk">
   <title>Patroli Produk - Verifikasi Kategori</title>
+  <link rel="icon" type="image/png" href="/icon/icon.png">
   <link rel="stylesheet" href="/css/style.css">
+  <link rel="manifest" href="/manifest.json">
+  
+  <!-- iOS PWA Support -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Patroli">
+  <link rel="apple-touch-icon" href="/icon/icon.png">
+  
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(registration => {
+            console.log('ServiceWorker registration successful with scope: ', registration.scope);
+          })
+          .catch(err => {
+            console.log('ServiceWorker registration failed: ', err);
+          });
+      });
+    }
+  </script>
 </head>
 <body>
+  <!-- Floating Background Animation -->
+  <div class="floating-background">
+    <div class="floating-item item-1">📦</div>
+    <div class="floating-item item-2">🛍️</div>
+    <div class="floating-item item-3">👕</div>
+    <div class="floating-item item-4">👟</div>
+    <div class="floating-item item-5">📱</div>
+    <div class="floating-item item-6">💻</div>
+    <div class="floating-item item-7">🎒</div>
+    <div class="floating-item item-8">⌚</div>
+    <div class="floating-item item-9">🎧</div>
+    <div class="floating-item item-10">📷</div>
+  </div>
+
   <div class="container">
     <!-- Header -->
     <header class="header">
-      <h1>🔍 Patroli Produk</h1>
-      <p>Sistem Verifikasi Kesesuaian Kategori Produk</p>
+      <h1>Patroli App</h1>
+      <p>Sistem Patroli Kesesuaian Kategori Produk</p>
     </header>
 
     <!-- Upload Section -->
     <section class="upload-section">
-      <!-- Google Sheets Section (Only Method) -->
+      <!-- Google Sheets Section (Only Method)-->
       <div id="sheetsSection">
         <div class="upload-area">
-          <div class="upload-icon">📊</div>
-          <h3>Google Sheets Integration</h3>
+          <div class="upload-icon">
+            <img src="/assets/main/Sally.png" alt="Sally" style="width: 250px; height: 250px; object-fit: contain;">
+          </div>
+          <h3>Patroli Produk Katalog Elektronik V6</h3>
           <p>Pilih karakter Anda dan masukkan URL atau ID Spreadsheet</p>
           
           <!-- Character Selection Button -->
           <div style="margin-bottom: 1rem;">
-            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Pilih Reviewer:</label>
             <button id="characterSelectBtn" class="character-select-btn" onclick="openCharacterModal()">
               <div class="selected-character-display">
                 <div class="character-avatar-small">👤</div>
@@ -36,10 +73,19 @@
             </button>
           </div>
 
-          <input type="text" id="sheetIdInput" class="form-input" placeholder="https://docs.google.com/spreadsheets/d/..." style="width: 100%; max-width: 500px; margin-bottom: 1rem; padding: 0.8rem;">
+          <input type="text" id="sheetIdInput" class="form-input" placeholder="https://docs.google.com/spreadsheets/d/..." value="https://docs.google.com/spreadsheets/d/1Ie4Qf4xTchnfwMTt6tKD9AAtjxmDuu1dvjVJcK_q5h8/edit?usp=sharing" style="width: 100%; max-width: 500px; margin-bottom: 1rem; padding: 0.8rem;">
           <button class="btn btn-primary" onclick="loadFromSheets()">
             Load Data from Sheets
           </button>
+          <button class="btn btn-secondary" onclick="scrapeImages()" style="margin-left: 0.5rem; background-color: #ff9800; color: white; border: none;">
+            📸 Scrape Images
+          </button>
+          <div id="scrapeStatus" class="mt-2 text-center hidden" style="margin-top: 1rem; padding: 1rem; background: rgba(255, 152, 0, 0.1); border-radius: 8px; border: 1px solid rgba(255, 152, 0, 0.3);">
+            <span id="scrapeStatusText" style="color: #ffb74d; font-weight: 500;">Processing...</span>
+            <div class="progress-bar" style="margin-top: 0.75rem; height: 6px; background: rgba(255, 152, 0, 0.2);">
+              <div id="scrapeProgress" style="width: 0%; height: 100%; background: linear-gradient(90deg, #ff9800, #ffc107); transition: width 0.3s; border-radius: 3px;"></div>
+            </div>
+          </div>
           <p class="text-muted small mt-2" style="font-size: 0.85rem; margin-top: 1rem;">
             Pastikan Spreadsheet sudah dishare ke Service Account email.
           </p>
@@ -90,12 +136,12 @@
       </div>
 
       <!-- Search Bar & Filter -->
-      <div style="margin-bottom: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap;">
-        <select id="categoryFilter" class="form-input" style="min-width: 200px; padding: 0.8rem;" onchange="filterByCategory()">
+      <div class="filter-section">
+        <select id="categoryFilter" class="form-input" style="min-width: 200px;" onchange="filterByCategory()">
           <option value="">Semua Kategori</option>
           <!-- Categories will be populated here -->
         </select>
-        <input type="text" id="searchInput" class="form-input" placeholder="🔍 Cari nama produk..." style="flex: 1; padding: 0.8rem; min-width: 200px;">
+        <input type="text" id="searchInput" class="form-input" placeholder="🔍 Cari nama produk..." style="flex: 1; min-width: 200px;">
         <button class="btn btn-primary" onclick="searchProducts()">Cari</button>
       </div>
 
@@ -155,23 +201,37 @@
       </div>
       <div class="character-grid">
         <!-- Character Cards -->
-        <div class="character-card" onclick="selectCharacter('Budi', 'cowo')">
+        <!-- Character Cards -->
+        <!-- Cewe -->
+        <div class="character-card" onclick="selectCharacter('Alo', 'cewe')">
           <div class="character-avatar">
-            <img src="/assets/character/cowo/character_cowo_professional.png" alt="Budi">
+            <img src="/assets/character/cewe/character_cewe_fashion.png" alt="Alo">
           </div>
-          <div class="character-name">Budi</div>
+          <div class="character-name">Alo</div>
+        </div>
+        <div class="character-card" onclick="selectCharacter('Egi', 'cewe')">
+          <div class="character-avatar">
+            <img src="/assets/character/cewe/character_cewe_gamer.png" alt="Egi">
+          </div>
+          <div class="character-name">Egi</div>
         </div>
         <div class="character-card" onclick="selectCharacter('Ema', 'cewe')">
           <div class="character-avatar">
-            <img src="/assets/character/cewe/character_cewe_fashion.png" alt="Ema">
+            <img src="/assets/character/cewe/character_cewe_kopi.png" alt="Ema">
           </div>
           <div class="character-name">Ema</div>
         </div>
-        <div class="character-card" onclick="selectCharacter('Ibnu', 'cowo')">
+        <div class="character-card" onclick="selectCharacter('Prissa', 'cewe')">
           <div class="character-avatar">
-            <img src="/assets/character/cowo/Character_cowo_pintar.png" alt="Ibnu">
+            <img src="/assets/character/cewe/character_cewe_fashion.png" alt="Prissa">
           </div>
-          <div class="character-name">Ibnu</div>
+          <div class="character-name">Prissa</div>
+        </div>
+        <div class="character-card" onclick="selectCharacter('Widiya', 'cewe')">
+          <div class="character-avatar">
+            <img src="/assets/character/cewe/character_cewe_gamer.png" alt="Widiya">
+          </div>
+          <div class="character-name">Widiya</div>
         </div>
         <div class="character-card" onclick="selectCharacter('Yona', 'cewe')">
           <div class="character-avatar">
@@ -179,35 +239,49 @@
           </div>
           <div class="character-name">Yona</div>
         </div>
-        <div class="character-card" onclick="selectCharacter('Alo', 'cewe')">
-          <div class="character-avatar">
-            <img src="/assets/character/cewe/character_cewe_fashion.png" alt="Alo">
-          </div>
-          <div class="character-name">Alo</div>
-        </div>
+
+        <!-- Cowo -->
         <div class="character-card" onclick="selectCharacter('Amin', 'cowo')">
           <div class="character-avatar">
             <img src="/assets/character/cowo/character_cowo_street.png" alt="Amin">
           </div>
           <div class="character-name">Amin</div>
         </div>
-        <div class="character-card" onclick="selectCharacter('Mario', 'cowo')">
-          <div class="character-avatar">
-            <img src="/assets/character/cowo/character_cowo_explore.png" alt="Mario">
-          </div>
-          <div class="character-name">Mario</div>
-        </div>
-        <div class="character-card" onclick="selectCharacter('Gunawan', 'cowo')">
-          <div class="character-avatar">
-            <img src="/assets/character/cowo/character_cowo_professional.png" alt="Gunawan">
-          </div>
-          <div class="character-name">Gunawan</div>
-        </div>
         <div class="character-card" onclick="selectCharacter('Amri', 'cowo')">
           <div class="character-avatar">
             <img src="/assets/character/cowo/Character_cowo_pintar.png" alt="Amri">
           </div>
           <div class="character-name">Amri</div>
+        </div>
+        <div class="character-card" onclick="selectCharacter('Budi', 'cowo')">
+          <div class="character-avatar">
+            <img src="/assets/character/cowo/character_cowo_professional.png" alt="Budi">
+          </div>
+          <div class="character-name">Budi</div>
+        </div>
+        <div class="character-card" onclick="selectCharacter('Dedi', 'cowo')">
+          <div class="character-avatar">
+            <img src="/assets/character/cowo/character_cowo_band.png" alt="Dedi">
+          </div>
+          <div class="character-name">Dedi</div>
+        </div>
+        <div class="character-card" onclick="selectCharacter('Gunawan', 'cowo')">
+          <div class="character-avatar">
+            <img src="/assets/character/cowo/character_cowo_explore.png" alt="Gunawan">
+          </div>
+          <div class="character-name">Gunawan</div>
+        </div>
+        <div class="character-card" onclick="selectCharacter('Ibnu', 'cowo')">
+          <div class="character-avatar">
+            <img src="/assets/character/cowo/Character_cowo_pintar.png" alt="Ibnu">
+          </div>
+          <div class="character-name">Ibnu</div>
+        </div>
+        <div class="character-card" onclick="selectCharacter('Mario', 'cowo')">
+          <div class="character-avatar">
+            <img src="/assets/character/cowo/character_cowo_professional.png" alt="Mario">
+          </div>
+          <div class="character-name">Mario</div>
         </div>
       </div>
     </div>

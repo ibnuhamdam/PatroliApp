@@ -1,9 +1,22 @@
 // Load Products
 const API_URL = `${window.location.origin}/api`;
 
-async function loadProducts() {
+// Global State
+let selectedReviewer = '';
+let currentUnreviewedPage = 1;
+let currentReviewedPage = 1;
+const itemsPerPage = 10;
+let totalUnreviewedPages = 1;
+let totalReviewedPages = 1;
+let currentMode = 'excel'; // 'excel' or 'sheets'
+let searchQuery = '';
 
+async function loadProducts() {
   const reviewerName = selectedReviewer || '';
+  const selectedCategory = document.getElementById('categoryFilter') ? document.getElementById('categoryFilter').value : '';
+
+
+  
 
   try {
     const params = new URLSearchParams({
@@ -123,14 +136,7 @@ function renderProducts(unreviewedProducts, reviewedProducts) {
     reviewedGrid.innerHTML = reviewedProducts.map(product => createProductCard(product)).join('');
   }
 
-  // Trigger auto fetch for products without images (only for unreviewed to save resources, or both?)
-  // Let's do both but prioritize unreviewed if needed.
-  const allProducts = [...(unreviewedProducts || []), ...(reviewedProducts || [])];
-  allProducts.forEach(product => {
-    if (!product.urlImage && product.urlProduk) {
-      autoFetchImage(product.id, product.urlProduk);
-    }
-  });
+
 }
 
 function createProductCard(product) {
@@ -165,14 +171,13 @@ function createProductCard(product) {
       <div class="product-image" id="img-container-${product.id}">
         ${product.urlImage ? 
           `<img src="${escapeHtml(product.urlImage.trim())}" alt="${escapeHtml(product.namaProduk)}" referrerpolicy="no-referrer" loading="lazy" onerror="this.onerror=null; this.src='https://via.placeholder.com/150?text=No+Image'">` :
-          `<div class="loading-image">
-             <div class="loading"></div>
-             <p>Mengambil gambar...</p>
+           `<div class="no-image">
+             <p>Gambar tidak tersedia</p>
            </div>`
         }
       </div>
       
-      ${!product.urlImage ? `<script>autoFetchImage(${product.id}, '${escapeHtml(product.urlProduk)}')</script>` : ''}
+
 
       <button class="btn-ai" onclick="explainProduct('${escapeHtml(product.namaProduk)}', '${escapeHtml(product.kategoriLv3)}', ${product.id})">
         🤖 Tanya AI tentang produk ini
@@ -265,6 +270,27 @@ async function loadStats() {
     // Update progress bar
     const progress = stats.total > 0 ? (stats.reviewed / stats.total) * 100 : 0;
     document.getElementById('progressFill').style.width = `${progress}%`;
+
+  } catch (error) {
+    console.error('Error loading stats:', error);
+  }
+}
+
+async function loadCategories() {
+  const reviewerName = selectedReviewer || '';
+  const categoryFilter = document.getElementById('categoryFilter');
+
+  try {
+    const response = await fetch(`${API_URL}/categories`);
+    const category = await response.json();
+    // console.log(category);
+
+    if (!response.ok) {
+      throw new Error('Gagal memuat Category');
+    }
+
+    categoryFilter.innerHTML = `<option value="">Semua Kategori</option>
+    ${category.map(cat => `<option value="${cat}">${cat}</option>`).join('')}`;
 
   } catch (error) {
     console.error('Error loading stats:', error);
@@ -549,41 +575,10 @@ function closeAIModal() {
   }
 }
 
-// Auto Fetch Image
-async function autoFetchImage(productId, url) {
-  try {
-    const response = await fetch(`${API_URL}/scrape-image`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ productId, url })
-    });
 
-    const data = await response.json();
-
-    // console.log(data);
-
-    if (data.success && data.urlImage) {
-      const container = document.getElementById(`img-container-${productId}`);
-      if (container) {
-        container.innerHTML = `<img src="${data.urlImage}" alt="Product Image" referrerpolicy="no-referrer" loading="lazy" onerror="this.onerror=null; this.src='https://via.placeholder.com/150?text=No+Image'">`;
-      }
-    } else {
-      throw new Error(data.error || 'Gambar tidak ditemukan');
-    }
-
-  } catch (error) {
-    console.error(`Failed to fetch image for product ${productId}:`, error);
-    const container = document.getElementById(`img-container-${productId}`);
-    if (container) {
-      container.innerHTML = `<div class="no-image">Gambar tidak tersedia</div>`;
-    }
-  }
-}
 
 // Character Selection Functions
-let selectedReviewer = '';
+
 
 // Character image pools
 const characterImages = {
@@ -707,6 +702,10 @@ async function loadFromSheets() {
   }
 }
 
+// Setup Event Listeners
+function setupEventListeners() {
+}
+
 // Close modal when clicking outside
 document.addEventListener('DOMContentLoaded', () => {
   const modal = document.getElementById('characterModal');
@@ -718,3 +717,146 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+  setupEventListeners();
+  
+  // Add enter key listener for search
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) {
+    searchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        searchProducts();
+      }
+    });
+  }
+});
+
+// ... (setupEventListeners remains same) ...
+
+// Search Products
+function searchProducts() {
+  const searchInput = document.getElementById('searchInput');
+  searchQuery = searchInput.value.trim();
+  
+  // Reset pages to 1 when searching
+  currentUnreviewedPage = 1;
+  currentReviewedPage = 1;
+  
+  loadProducts();
+}
+
+// Change Unreviewed Page
+function filterByCategory() {
+  const categoryFilter = document.getElementById('categoryFilter');
+  const selectedCategory = categoryFilter.value;
+  
+  // Reset pages to 1 when filtering
+  currentUnreviewedPage = 1;
+  currentReviewedPage = 1;
+  
+  loadProducts();
+}
+
+// Change Unreviewed Page
+function changeUnreviewedPage(delta) {
+  const newPage = currentUnreviewedPage + delta;
+  if (newPage >= 1 && newPage <= totalUnreviewedPages) {
+    currentUnreviewedPage = newPage;
+    loadProducts();
+  }
+}
+
+// Change Reviewed Page
+function changeReviewedPage(delta) {
+  const newPage = currentReviewedPage + delta;
+  if (newPage >= 1 && newPage <= totalReviewedPages) {
+    currentReviewedPage = newPage;
+    loadProducts();
+  }
+}
+
+
+
+// Scrape Images Batch (with SSE Progress)
+function scrapeImages() {
+  const statusDiv = document.getElementById('scrapeStatus');
+  const statusText = document.getElementById('scrapeStatusText');
+  const progressBar = document.getElementById('scrapeProgress');
+  const sheetIdInput = document.getElementById('sheetIdInput');
+  
+  // Get current spreadsheet ID
+  let spreadsheetId = sheetIdInput.value.trim();
+  const match = spreadsheetId.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  if (match) {
+    spreadsheetId = match[1];
+  }
+
+  statusDiv.classList.remove('hidden');
+  statusText.textContent = 'Starting batch scrape...';
+  
+  // Reset styles
+  statusText.style.color = '#ffb74d'; 
+  statusDiv.style.backgroundColor = 'rgba(255, 152, 0, 0.1)';
+  statusDiv.style.borderColor = 'rgba(255, 152, 0, 0.3)';
+  
+  progressBar.style.width = '0%';
+
+  // Close existing event source if any
+  if (window.scrapeEventSource) {
+    window.scrapeEventSource.close();
+  }
+
+  const url = `/api/scrape-batch-stream?spreadsheetId=${encodeURIComponent(spreadsheetId)}`;
+  const eventSource = new EventSource(url);
+  window.scrapeEventSource = eventSource;
+
+  eventSource.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+
+    if (data.type === 'start') {
+      statusText.textContent = data.message;
+      progressBar.style.width = '5%';
+    } else if (data.type === 'progress') {
+      const percent = Math.round((data.processed / data.total) * 100);
+      progressBar.style.width = `${percent}%`;
+      statusText.textContent = `${data.message} (${percent}%)`;
+      
+      // Update UI if successful
+      if (data.result && data.result.success) {
+        // Find product card and update image (if loaded in UI)
+        // Note: Row index in sheet is 0-based, but our IDs might be 1-based or different
+        // We need a way to map row index to product ID if possible, or just reload at the end
+        // For now, let's just update progress
+      }
+    } else if (data.type === 'done') {
+      statusText.textContent = 'Batch scraping completed!';
+      statusText.style.color = '#4caf50'; // Green
+      statusDiv.style.backgroundColor = 'rgba(76, 175, 80, 0.1)';
+      statusDiv.style.borderColor = 'rgba(76, 175, 80, 0.3)';
+      progressBar.style.width = '100%';
+      progressBar.style.background = 'linear-gradient(90deg, #4caf50, #8bc34a)';
+      
+      eventSource.close();
+      
+      // Refresh grid
+      setTimeout(() => {
+        loadFromSheets(); // Reload data to show new images
+      }, 1000);
+    } else if (data.type === 'error') {
+      statusText.textContent = 'Error: ' + data.message;
+      statusText.style.color = '#ff5252';
+      statusDiv.style.backgroundColor = 'rgba(255, 23, 68, 0.1)';
+      statusDiv.style.borderColor = 'rgba(255, 23, 68, 0.3)';
+      eventSource.close();
+    }
+  };
+
+  eventSource.onerror = function(err) {
+    console.error('EventSource failed:', err);
+    statusText.textContent = 'Connection lost. Check console.';
+    statusText.style.color = '#ff5252';
+    eventSource.close();
+  };
+}

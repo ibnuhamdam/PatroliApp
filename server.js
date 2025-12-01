@@ -10,6 +10,7 @@ const scrapperImageService = require('./services/ScrapperImage');
 const axios = require('axios');
 const cheerio = require('cheerio');
 const puppeteer = require('puppeteer');
+const { google } = require('googleapis');
 const env = require('dotenv').config();
 
 const app = express();
@@ -72,7 +73,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
     const data = XLSX.utils.sheet_to_json(worksheet);
 
     // Validasi kolom yang diperlukan
-    const requiredColumns = ['kategori_lv1', 'kategori_lv2', 'kategori_lv3', 'nama_produk','url_produk', 'hasil pemeriksa','reviewer', 'pemeriksa'];
+    const requiredColumns = ['kategori_lv1', 'kategori_lv2', 'kategori_lv3', 'nama_produk','url_produk', 'hasil_pemeriksa','reviewer', 'pemeriksa'];
     if (data.length > 0) {
       const columns = Object.keys(data[0]);
       const missingColumns = requiredColumns.filter(col => !columns.includes(col));
@@ -88,7 +89,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
     const invalidRows = [];
     // console.log(data)
     data.forEach((item, index) => {
-      const hasilPemeriksaan = item['hasil pemeriksa'];
+      const hasilPemeriksaan = item['hasil_pemeriksa'];
       if (hasilPemeriksaan && !['Sesuai', 'Tidak Sesuai'].includes(hasilPemeriksaan)) {
         invalidRows.push(index + 2); // +2 karena row 1 adalah header, index mulai dari 0
       }
@@ -123,9 +124,9 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
       kategoriLv2: item['kategori_lv2'] || '',
       kategoriLv3: item['kategori_lv3'] || '',
       namaProduk: item['nama_produk'] || '',
-      urlImage: item['url_image'] || '',
+      urlImage: item['image_url'] || item['url_image'] || '',
       urlProduk: item['url_produk'] || '',
-      hasilPemeriksaan: item['hasil pemeriksa'] || '', // MANDATORY - read-only
+      hasilPemeriksaan: item['hasil_pemeriksa'] || '', // MANDATORY - read-only
       hasilReview: item['hasil_review'] || null,   // Will be filled via app
       pemeriksa: item['pemeriksa'] || '',          // MANDATORY
       reviewer: item['reviewer'] || '',          // MANDATORY
@@ -157,10 +158,13 @@ app.get('/api/products', (req, res) => {
   const category = req.query.category; // New: Category filter
   const searchQuery = req.query.search ? req.query.search.toLowerCase() : '';
 
+  // Filter empty hasil pemeriksaan
+  const validProducts = productsData.filter(p => p.hasilPemeriksaan && p.hasilPemeriksaan.toString().trim() !== '');
+
   // 1. Filter by Reviewer
-  let filteredProducts = productsData;
+  let filteredProducts = validProducts;
   if (reviewer) {
-    filteredProducts = productsData.filter(p => p.reviewer === reviewer);
+    filteredProducts = validProducts.filter(p => p.reviewer === reviewer);
   }
 
   // 2. Filter by Category (New)
@@ -201,7 +205,7 @@ app.get('/api/products', (req, res) => {
   // so the user sees their overall progress.
   
   // Re-calculate stats based on Reviewer ONLY (ignoring search/category query for the stats cards)
-  const reviewerProducts = productsData.filter(p => p.reviewer === reviewer);
+  const reviewerProducts = validProducts.filter(p => p.reviewer === reviewer);
   const reviewerReviewed = reviewerProducts.filter(p => p.reviewed);
 
   const stats = {
@@ -242,9 +246,11 @@ app.get('/api/products', (req, res) => {
 app.get('/api/categories', (req, res) => {
   const reviewer = req.query.reviewer;
   
-  let filteredProducts = productsData;
+  const validProducts = productsData.filter(p => p.hasilPemeriksaan && p.hasilPemeriksaan.toString().trim() !== '');
+
+  let filteredProducts = validProducts;
   if (reviewer) {
-    filteredProducts = productsData.filter(p => p.reviewer === reviewer);
+    filteredProducts = validProducts.filter(p => p.reviewer === reviewer);
   }
 
   // Ambil unique kategori Lv 3
@@ -332,9 +338,11 @@ app.get('/api/stats', (req, res) => {
   const reviewer = req.query.reviewer;
   
   // Filter products by reviewer if specified
-  let filteredProducts = productsData;
+  const validProducts = productsData.filter(p => p.hasilPemeriksaan && p.hasilPemeriksaan.toString().trim() !== '');
+
+  let filteredProducts = validProducts;
   if (reviewer) {
-    filteredProducts = productsData.filter(p => p.reviewer === reviewer);
+    filteredProducts = validProducts.filter(p => p.reviewer === reviewer);
   }
 
   const stats = {
@@ -365,8 +373,11 @@ app.post('/api/ai/explain-product', async (req, res) => {
       return res.status(400).json({ error: 'Nama produk diperlukan' });
     }
 
-    const prompt = `Jelaskan secara singkat apa itu produk "${productName}" dalam 2-3 kalimat. Fokus pada fungsi dan kegunaan produk tersebut dalam konteks perkantoran atau bisnis. dan apakah produk "${productName}" dapat dikategorikan dalam kategori "${categoryName}"? Gunakan Bahasa Indonesia yang mudah dipahami.`;
-    
+    const rules1 = "Jika produk mencamtumkan kata seperti custom, cetak dan kata lain yang mengarah pada kegiatan jasa, maka dipastikan tidak sesuai"
+    // const rules2 = ""
+
+    const prompt = `Jelaskan secara singkat apa itu produk "${productName}" dalam 2-3 kalimat. Fokus pada fungsi dan kegunaan produk. dan apakah produk "${productName}" dapat dikategorikan dalam kategori "${categoryName}"?. Dengan catatan ${rules1}`;
+    console.log(prompt);
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const explanation = response.text();
@@ -410,7 +421,7 @@ app.post('/api/sheets/read', async (req, res) => {
     }
     
     // Validasi kolom yang diperlukan
-    const requiredColumns = ['kategori_lv1', 'kategori_lv2', 'kategori_lv3', 'nama_produk','url_produk', 'hasil pemeriksa','reviewer', 'pemeriksa'];
+    const requiredColumns = ['kategori_lv1', 'kategori_lv2', 'kategori_lv3', 'nama_produk','url_produk', 'hasil_pemeriksa','reviewer', 'pemeriksa'];
     if (data.length > 0) {
       const columns = Object.keys(data[0]);
       const missingColumns = requiredColumns.filter(col => !columns.includes(col));
@@ -425,7 +436,7 @@ app.post('/api/sheets/read', async (req, res) => {
     // Validasi nilai Hasil Pemeriksaan
     const invalidRows = [];
     data.forEach((item, index) => {
-      const hasilPemeriksaan = item['hasil pemeriksa'];
+      const hasilPemeriksaan = item['hasil_pemeriksa'];
       if (hasilPemeriksaan && !['Sesuai', 'Tidak Sesuai'].includes(hasilPemeriksaan)) {
         invalidRows.push(index + 2);
       }
@@ -458,9 +469,9 @@ app.post('/api/sheets/read', async (req, res) => {
       kategoriLv2: item['kategori_lv2'] || '',
       kategoriLv3: item['kategori_lv3'] || '',
       namaProduk: item['nama_produk'] || '',
-      urlImage: item['url_image'] || '',
+      urlImage: item['image_url'] || item['url_image'] || '',
       urlProduk: item['url_produk'] || '',
-      hasilPemeriksaan: item['hasil pemeriksa'] || '',
+      hasilPemeriksaan: item['hasil_pemeriksa'] || '',
       hasilReview: item['Review Validator'] || item['hasil_review'] || null, // Check both new and old column names
       pemeriksa: item['pemeriksa'] || '',
       reviewer: item['reviewer'] || '',
@@ -483,7 +494,7 @@ app.post('/api/sheets/read', async (req, res) => {
   }
 });
 
-// Endpoint: Update Google Sheets
+// Endpoint: Update Google Sheets (Only hasil_review column)
 app.post('/api/sheets/update', async (req, res) => {
   try {
     const { spreadsheetId } = req.body;
@@ -496,11 +507,114 @@ app.post('/api/sheets/update', async (req, res) => {
       return res.status(400).json({ error: 'Tidak ada data untuk diupdate' });
     }
 
-    const result = await sheetsService.updateSpreadsheet(spreadsheetId, productsData);
+    // Filter only products that have been reviewed (hasilReview is not null/empty)
+    const reviewedProducts = productsData.filter(p => p.hasilReview && p.hasilReview.trim() !== '');
+    
+    if (reviewedProducts.length === 0) {
+      return res.status(400).json({ error: 'Tidak ada produk yang sudah direview' });
+    }
+
+    console.log(`[Update Sheets] Updating ${reviewedProducts.length} reviewed products`);
+
+    // Get Google Sheets auth
+    const auth = new google.auth.GoogleAuth({
+      keyFile: './credentials.json',
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    // Read header to find hasil_review column index
+    const headerResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'Sheet1!1:1',
+    });
+
+    const headers = headerResponse.data.values ? headerResponse.data.values[0] : [];
+    let reviewColIndex = headers.indexOf('hasil_review');
+
+    // If column doesn't exist, create it by appending to the next available column
+    if (reviewColIndex === -1) {
+      reviewColIndex = headers.length;
+      const newColLetter = getColumnLetter(reviewColIndex + 1);
+      
+      // Only update the specific cell for the new header
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `Sheet1!${newColLetter}1`,
+        valueInputOption: 'RAW',
+        resource: { values: [['hasil_review']] },
+      });
+      
+      // Update local headers array to reflect change
+      headers.push('hasil_review');
+      console.log(`[Update Sheets] Created hasil_review column at ${newColLetter}1`);
+    }
+
+    // Read all data to match products by url_produk
+    const dataResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'Sheet1!A:Z',
+    });
+
+    const allRows = dataResponse.data.values || [];
+    const urlProdukIndex = headers.indexOf('url_produk');
+
+    if (urlProdukIndex === -1) {
+      return res.status(400).json({ error: 'Kolom url_produk tidak ditemukan di spreadsheet' });
+    }
+
+    // Update each reviewed product
+    const dataToUpdate = [];
+    const colLetter = getColumnLetter(reviewColIndex + 1);
+
+    for (const product of reviewedProducts) {
+      // Find matching row by url_produk (unique enough and available)
+      const targetUrl = String(product.urlProduk).trim();
+      
+      if (!targetUrl) {
+        console.log(`[Update Sheets] Skipping product with empty URL: ${product.namaProduk}`);
+        continue;
+      }
+
+      const rowIndex = allRows.findIndex((row, idx) => {
+        if (idx === 0) return false; // Skip header
+        const sheetUrl = row[urlProdukIndex] ? String(row[urlProdukIndex]).trim() : '';
+        return sheetUrl === targetUrl;
+      });
+
+      if (rowIndex !== -1) {
+        const actualRowNumber = rowIndex + 1; // 1-based
+        const range = `Sheet1!${colLetter}${actualRowNumber}`;
+        
+        // Collect update data instead of sending immediately
+        dataToUpdate.push({
+          range: range,
+          values: [[product.hasilReview]]
+        });
+
+        // console.log(`[Update Sheets] Queued update for row ${actualRowNumber}: URL ${targetUrl} = ${product.hasilReview}`);
+      } else {
+        console.log(`[Update Sheets] WARNING: Product URL ${targetUrl} not found in sheet!`);
+      }
+    }
+
+    if (dataToUpdate.length > 0) {
+      console.log(`[Update Sheets] Sending batch update for ${dataToUpdate.length} cells...`);
+      
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId,
+        resource: {
+          valueInputOption: 'RAW',
+          data: dataToUpdate
+        }
+      });
+      
+      console.log(`[Update Sheets] Batch update success!`);
+    }
     
     res.json({
       success: true,
-      message: `Berhasil mengupdate baris di Google Sheet`
+      message: `Berhasil mengupdate ${dataToUpdate.length} produk di Google Sheet`
     });
 
   } catch (error) {
@@ -508,6 +622,17 @@ app.post('/api/sheets/update', async (req, res) => {
     res.status(500).json({ error: 'Gagal mengupdate Google Sheet: ' + error.message });
   }
 });
+
+// Helper function to convert column index to letter (A, B, C, ..., Z, AA, AB, ...)
+function getColumnLetter(columnNumber) {
+  let letter = '';
+  while (columnNumber > 0) {
+    const remainder = (columnNumber - 1) % 26;
+    letter = String.fromCharCode(65 + remainder) + letter;
+    columnNumber = Math.floor((columnNumber - 1) / 26);
+  }
+  return letter;
+}
 
 // Endpoint: Scrape Image (Using ScrapperImage Service)
 app.post('/api/scrape-image', async (req, res) => {
@@ -563,6 +688,47 @@ app.post('/api/scrape-image', async (req, res) => {
       details: error.stack
     });
   }
+});
+
+// Endpoint: Batch Scrape Images (SSE Streaming)
+app.get('/api/scrape-batch-stream', async (req, res) => {
+  // Set headers for SSE
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const spreadsheetId = req.query.spreadsheetId || currentSpreadsheetId;
+
+  try {
+    console.log('[Batch Scraper] Starting batch scraping stream...');
+    
+    // Dynamic import for ESM module
+    const { runBatch } = await import('./scrape-image-sheet/sheet-scrape.js');
+
+    console.log(`[Batch Scraper] Triggering runBatch for Sheet ID: ${spreadsheetId || 'Default'}`);
+
+    // Run the batch process with progress callback
+    await runBatch(spreadsheetId, (progress) => {
+      // Send progress event
+      res.write(`data: ${JSON.stringify(progress)}\n\n`);
+    });
+
+    // Send final event
+    res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+    res.end();
+
+  } catch (error) {
+    console.error('[Batch Scraper] Error:', error);
+    res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
+    res.end();
+  }
+});
+
+// Keep the POST endpoint for backward compatibility or simple triggering if needed
+// But for progress bar, we will use the GET stream endpoint
+app.post('/api/scrape-batch', async (req, res) => {
+   res.json({ success: true, message: "Use /api/scrape-batch-stream for progress updates" });
 });
 
 app.listen(PORT, () => {

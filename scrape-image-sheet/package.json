@@ -1,0 +1,10 @@
+{
+  "type": "module",
+  "dependencies": {
+    "@sparticuz/chromium": "^141.0.0",
+    "googleapis": "^166.0.0",
+    "p-limit": "^7.2.0",
+    "puppeteer": "^24.31.0",
+    "puppeteer-core": "^24.31.0"
+  }
+}
