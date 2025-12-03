@@ -518,8 +518,6 @@ app.post('/api/sheets/update', async (req, res) => {
       return res.status(400).json({ error: 'Tidak ada produk yang sudah direview' });
     }
 
-    console.log(`[Update Sheets] Updating ${reviewedProducts.length} reviewed products`);
-
     // Get Google Sheets auth
     const auth = new google.auth.GoogleAuth({
       keyFile: './credentials.json',
@@ -603,7 +601,6 @@ app.post('/api/sheets/update', async (req, res) => {
     }
 
     if (dataToUpdate.length > 0) {
-      console.log(`[Update Sheets] Sending batch update for ${dataToUpdate.length} cells...`);
       
       await sheets.spreadsheets.values.batchUpdate({
         spreadsheetId,
@@ -613,7 +610,6 @@ app.post('/api/sheets/update', async (req, res) => {
         }
       });
       
-      console.log(`[Update Sheets] Batch update success!`);
     }
     
     res.json({

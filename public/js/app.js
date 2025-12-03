@@ -10,6 +10,7 @@ let totalUnreviewedPages = 1;
 let totalReviewedPages = 1;
 let currentMode = 'excel'; // 'excel' or 'sheets'
 let searchQuery = '';
+let reviewCounter = 0; // Counter for auto-save
 
 async function loadProducts() {
   const reviewerName = selectedReviewer || '';
@@ -248,6 +249,29 @@ async function reviewProduct(productId, hasil_review) {
     await loadProducts();
     await loadStats();
 
+    // Auto Save Logic
+    reviewCounter++;
+    
+    // Update Indicator UI
+    const indicatorSubtitle = document.querySelector('.indicator-subtitle');
+    if (indicatorSubtitle) {
+      indicatorSubtitle.textContent = `Simpan tiap 10 review (${reviewCounter}/10)`;
+    }
+    
+    if (reviewCounter >= 10) {
+      showNotification('Auto saving progress...', 'success');
+      try {
+        await updateSheets();
+        reviewCounter = 0; // Reset counter
+        // Reset Indicator UI
+        if (indicatorSubtitle) {
+          indicatorSubtitle.textContent = `Simpan tiap 10 review (0/10)`;
+        }
+      } catch (err) {
+        showNotification('Auto save failed:', 'error');
+      }
+    }
+
   } catch (error) {
     showNotification(error.message, 'error');
   }
@@ -374,6 +398,7 @@ async function resetData() {
 
 // Update Google Sheets
 async function updateSheets() {
+  console.log('[UpdateSheets] Function called.');
   const sheetIdInput = document.getElementById('sheetIdInput');
   let spreadsheetId = sheetIdInput.value.trim();
   

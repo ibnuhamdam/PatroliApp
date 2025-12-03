@@ -1471,3 +1471,71 @@ select.form-input option {
 .item-8 { left: 80%; animation-duration: 19s; animation-delay: -12s; font-size: 3.8rem; }
 .item-9 { left: 90%; animation-duration: 23s; animation-delay: -6s; font-size: 2.6rem; }
 .item-10 { left: 15%; animation-duration: 28s; animation-delay: -20s; font-size: 4.2rem; }
+
+/* Auto Save Indicator */
+.auto-save-indicator {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  z-index: 900; /* Below notification but above content */
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  animation: slideInUp 0.5s ease;
+  pointer-events: none; /* Let clicks pass through */
+}
+
+.indicator-icon {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #00c853 0%, #00e676 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 200, 83, 0.3);
+}
+
+.indicator-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.indicator-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: white;
+}
+
+.indicator-subtitle {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Adjust notification position to not overlap */
+.notification {
+  top: 2rem;
+  right: 2rem;
+  /* Keep it at top right as per original design */
+}
