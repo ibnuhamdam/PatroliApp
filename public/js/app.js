@@ -197,7 +197,7 @@ function createProductCard(product) {
         </div>
         <div class="info-row">
           <span class="info-label">👤 Pemeriksa:</span>
-          <span class="info-value">${escapeHtml(product.pemeriksa)}</span>
+          <span class="info-value">${product.pemeriksa ? escapeHtml(product.pemeriksa) : '<span class="text-muted">Kosong</span>'}</span>
         </div>
         <div class="info-row">
           <span class="info-label">👤 Reviewer:</span>

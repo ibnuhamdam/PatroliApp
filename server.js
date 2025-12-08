@@ -75,7 +75,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
     const data = XLSX.utils.sheet_to_json(worksheet);
 
     // Validasi kolom yang diperlukan
-    const requiredColumns = ['kategori_lv1', 'kategori_lv2', 'kategori_lv3', 'nama_produk','url_produk', 'hasil_pemeriksa','reviewer', 'pemeriksa'];
+    const requiredColumns = ['kategori_lv1', 'kategori_lv2', 'kategori_lv3', 'nama_produk','url_produk', 'hasil_pemeriksa','reviewer'];
     if (data.length > 0) {
       const columns = Object.keys(data[0]);
       const missingColumns = requiredColumns.filter(col => !columns.includes(col));
@@ -105,19 +105,19 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
       });
     }
 
-    // Validasi Pemeriksa tidak boleh kosong
-    const emptyPemeriksa = [];
-    data.forEach((item, index) => {
-      if (!item['pemeriksa'] || item['pemeriksa'].toString().trim() === '') {
-        emptyPemeriksa.push(index + 2);
-      }
-    });
+    // Validasi Pemeriksa tidak boleh kosong - REMOVED
+    // const emptyPemeriksa = [];
+    // data.forEach((item, index) => {
+    //   if (!item['pemeriksa'] || item['pemeriksa'].toString().trim() === '') {
+    //     emptyPemeriksa.push(index + 2);
+    //   }
+    // });
 
-    if (emptyPemeriksa.length > 0) {
-      return res.status(400).json({ 
-        error: `Kolom "Pemeriksa" wajib diisi. Baris yang bermasalah: ${emptyPemeriksa.join(', ')}` 
-      });
-    }
+    // if (emptyPemeriksa.length > 0) {
+    //   return res.status(400).json({ 
+    //     error: `Kolom "Pemeriksa" wajib diisi. Baris yang bermasalah: ${emptyPemeriksa.join(', ')}` 
+    //   });
+    // }
 
     // Transform data dengan ID unik
     productsData = data.map((item, index) => ({
@@ -424,7 +424,7 @@ app.post('/api/sheets/read', async (req, res) => {
     }
     
     // Validasi kolom yang diperlukan
-    const requiredColumns = ['kategori_lv1', 'kategori_lv2', 'kategori_lv3', 'nama_produk','url_produk', 'hasil_pemeriksa','reviewer', 'pemeriksa'];
+    const requiredColumns = ['kategori_lv1', 'kategori_lv2', 'kategori_lv3', 'nama_produk','url_produk', 'hasil_pemeriksa','reviewer'];
     if (data.length > 0) {
       const columns = Object.keys(data[0]);
       const missingColumns = requiredColumns.filter(col => !columns.includes(col));
@@ -451,19 +451,19 @@ app.post('/api/sheets/read', async (req, res) => {
       });
     }
 
-    // Validasi Pemeriksa
-    const emptyPemeriksa = [];
-    data.forEach((item, index) => {
-      if (!item['pemeriksa'] || item['pemeriksa'].toString().trim() === '') {
-        emptyPemeriksa.push(index + 2);
-      }
-    });
+    // Validasi Pemeriksa - REMOVED
+    // const emptyPemeriksa = [];
+    // data.forEach((item, index) => {
+    //   if (!item['pemeriksa'] || item['pemeriksa'].toString().trim() === '') {
+    //     emptyPemeriksa.push(index + 2);
+    //   }
+    // });
 
-    if (emptyPemeriksa.length > 0) {
-      return res.status(400).json({ 
-        error: `Kolom "Pemeriksa" wajib diisi. Baris yang bermasalah: ${emptyPemeriksa.join(', ')}` 
-      });
-    }
+    // if (emptyPemeriksa.length > 0) {
+    //   return res.status(400).json({ 
+    //     error: `Kolom "Pemeriksa" wajib diisi. Baris yang bermasalah: ${emptyPemeriksa.join(', ')}` 
+    //   });
+    // }
 
     // Transform data
     productsData = data.map((item, index) => ({
