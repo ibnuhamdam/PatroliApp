@@ -461,6 +461,7 @@ function getReviewStatusText(hasil_review) {
 function getStatusBadgeClass(status) {
   if (status === 'Sesuai' || status === 'Benar') return 'badge-sesuai';
   if (status === 'Tidak Sesuai' || status === 'Salah') return 'badge-tidak-sesuai';
+  if (status === 'Ragu') return 'badge-lewati';
   return '';
 }
 

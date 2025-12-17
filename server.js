@@ -92,7 +92,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
     // console.log(data)
     data.forEach((item, index) => {
       const hasilPemeriksaan = item['hasil_pemeriksa'];
-      if (hasilPemeriksaan && !['Sesuai', 'Tidak Sesuai'].includes(hasilPemeriksaan)) {
+      if (hasilPemeriksaan && !['Sesuai', 'Tidak Sesuai', 'Lewati'].includes(hasilPemeriksaan)) {
         invalidRows.push(index + 2); // +2 karena row 1 adalah header, index mulai dari 0
       }
 
@@ -101,7 +101,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 
     if (invalidRows.length > 0) {
       return res.status(400).json({ 
-        error: `Kolom "Hasil Pemeriksaan" harus diisi dengan "Sesuai" atau "Tidak Sesuai". Baris yang bermasalah: ${invalidRows.join(', ')}` 
+        error: `Kolom "Hasil Pemeriksaan" harus diisi dengan "Sesuai", "Tidak Sesuai", atau "Lewati". Baris yang bermasalah: ${invalidRows.join(', ')}` 
       });
     }
 
@@ -440,14 +440,14 @@ app.post('/api/sheets/read', async (req, res) => {
     const invalidRows = [];
     data.forEach((item, index) => {
       const hasilPemeriksaan = item['hasil_pemeriksa'];
-      if (hasilPemeriksaan && !['Sesuai', 'Tidak Sesuai'].includes(hasilPemeriksaan)) {
+      if (hasilPemeriksaan && !['Sesuai', 'Tidak Sesuai', 'Ragu'].includes(hasilPemeriksaan)) {
         invalidRows.push(index + 2);
       }
     });
 
     if (invalidRows.length > 0) {
       return res.status(400).json({ 
-        error: `Kolom "Hasil Pemeriksaan" harus diisi dengan "Sesuai" atau "Tidak Sesuai". Baris yang bermasalah: ${invalidRows.join(', ')}` 
+        error: `Kolom "Hasil Pemeriksaan" harus diisi dengan "Sesuai", "Tidak Sesuai", atau "Ragu". Baris yang bermasalah: ${invalidRows.join(', ')}` 
       });
     }
 

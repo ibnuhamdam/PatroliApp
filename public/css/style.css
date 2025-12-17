@@ -672,6 +672,15 @@ body::before {
   box-shadow: 0 2px 8px rgba(255, 23, 68, 0.3);
 }
 
+.badge-lewati {
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, #ffa726 0%, #ff9800 100%);
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+}
+
 /* Match Badges */
 .match-badge {
   padding: 0.25rem 0.6rem;
